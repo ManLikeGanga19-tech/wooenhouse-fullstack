@@ -1,0 +1,58 @@
+# /etc/systemd/system/woodenhouses-api.service
+# Copy this file to /etc/systemd/system/ on your server then:
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable woodenhouses-api
+#   sudo systemctl start woodenhouses-api
+
+[Unit]
+Description=Wooden Houses Kenya ASP.NET Core API
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+# Change to your actual Linux user
+User=woodenhouses
+Group=woodenhouses
+
+WorkingDirectory=/var/www/woodenhouses-api
+
+# The published binary
+ExecStart=/var/www/woodenhouses-api/WoodenHousesAPI
+
+# Restart automatically if it crashes
+Restart=always
+RestartSec=10
+
+# Environment
+Environment=ASPNETCORE_ENVIRONMENT=Production
+Environment=ASPNETCORE_URLS=http://localhost:5000
+Environment=DOTNET_PRINT_TELEMETRY_MESSAGE=false
+
+# Production secrets — set REAL values here, NOT in appsettings.json
+Environment="ConnectionStrings__DefaultConnection=Host=localhost;Port=5432;Database=woodenhouses_db;Username=DB_USER;Password=DB_PASSWORD;Pooling=true"
+Environment="Jwt__Key=YOUR_64_CHAR_RANDOM_SECRET_KEY"
+Environment="Jwt__Issuer=woodenhouseskenya.com"
+Environment="Jwt__Audience=woodenhouseskenya.com"
+Environment="Email__Host=mail.woodenhouseskenya.com"
+Environment="Email__Port=587"
+Environment="Email__Username=info@woodenhouseskenya.com"
+Environment="Email__Password=YOUR_EMAIL_PASSWORD"
+Environment="Email__FromName=Wooden Houses Kenya"
+Environment="Email__FromAddress=info@woodenhouseskenya.com"
+Environment="Email__AdminAddress=admin@woodenhouseskenya.com"
+Environment="Cors__AllowedOrigins=https://woodenhouseskenya.com,https://admin.woodenhouseskenya.com,https://www.woodenhouseskenya.com"
+Environment="Seed__AdminEmail=admin@woodenhouseskenya.com"
+Environment="Seed__AdminName=Site Administrator"
+Environment="Seed__AdminPassword=STRONG_PASSWORD_CHANGE_AFTER_FIRST_LOGIN"
+
+# Limits
+LimitNOFILE=65536
+TimeoutStopSec=30
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=woodenhouses-api
+
+[Install]
+WantedBy=multi-user.target

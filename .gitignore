@@ -1,0 +1,26 @@
+# ─── Frontend ────────────────────────────────────────────────────────────────
+frontend/.next/
+frontend/node_modules/
+frontend/.env.local
+frontend/.env.production
+frontend/out/
+
+# ─── Backend ─────────────────────────────────────────────────────────────────
+backend/**/bin/
+backend/**/obj/
+backend/**/*.user
+backend/.vs/
+backend/**/logs/
+backend/**/wwwroot/uploads/
+backend/WoodenHousesAPI/appsettings.Production.json
+
+# ─── OS / IDE ─────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.suo
+
+# ─── Deploy ───────────────────────────────────────────────────────────────────
+deploy/*.log

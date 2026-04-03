@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>WoodenHousesAPI.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Test framework -->
+    <PackageReference Include="xunit" Version="2.9.0" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+
+    <!-- Assertions -->
+    <PackageReference Include="FluentAssertions" Version="6.12.2" />
+
+    <!-- Mocking -->
+    <PackageReference Include="Moq" Version="4.20.72" />
+
+    <!-- ASP.NET Core integration testing -->
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.8" />
+
+    <!-- Real PostgreSQL in tests via Docker -->
+    <PackageReference Include="Testcontainers.PostgreSql" Version="3.10.0" />
+
+    <!-- EF Core in-memory for pure unit tests -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="8.0.8" />
+
+    <!-- HTTP client helpers -->
+    <PackageReference Include="System.Net.Http.Json" Version="8.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Reference the main project -->
+    <ProjectReference Include="..\WoodenHousesAPI\WoodenHousesAPI.csproj" />
+  </ItemGroup>
+
+</Project>

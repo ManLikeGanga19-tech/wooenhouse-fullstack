@@ -1,0 +1,32 @@
+# /etc/systemd/system/woodenhouses-frontend.service
+
+[Unit]
+Description=Wooden Houses Kenya Next.js Frontend
+After=network.target
+
+[Service]
+User=woodenhouses
+Group=woodenhouses
+
+WorkingDirectory=/var/www/woodenhouses-frontend
+
+ExecStart=/usr/bin/node server.js
+
+Restart=always
+RestartSec=10
+
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=NEXT_PUBLIC_API_URL=https://api.woodenhouseskenya.com
+Environment=NEXT_PUBLIC_SITE_URL=https://woodenhouseskenya.com
+Environment=NEXT_PUBLIC_ADMIN_URL=https://admin.woodenhouseskenya.com
+
+LimitNOFILE=65536
+TimeoutStopSec=30
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=woodenhouses-frontend
+
+[Install]
+WantedBy=multi-user.target
