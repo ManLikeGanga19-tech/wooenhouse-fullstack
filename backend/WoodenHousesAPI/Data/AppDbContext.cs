@@ -36,6 +36,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
              .WithMany(c => c.Quotes)
              .HasForeignKey(q => q.ContactId)
              .OnDelete(DeleteBehavior.SetNull);
+            e.HasIndex(q => q.PublicToken).IsUnique()
+             .HasFilter("\"PublicToken\" IS NOT NULL");
             e.Property(q => q.Status).HasDefaultValue("draft");
             e.Property(q => q.CreatedAt).HasDefaultValueSql("NOW()");
             e.Property(q => q.UpdatedAt).HasDefaultValueSql("NOW()");

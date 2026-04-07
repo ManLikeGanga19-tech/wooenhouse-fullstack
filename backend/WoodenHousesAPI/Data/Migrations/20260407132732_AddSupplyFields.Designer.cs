@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using WoodenHousesAPI.Data;
@@ -11,9 +12,11 @@ using WoodenHousesAPI.Data;
 namespace WoodenHousesAPI.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260407132732_AddSupplyFields")]
+    partial class AddSupplyFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -291,9 +294,6 @@ namespace WoodenHousesAPI.Data.Migrations
                     b.Property<string>("PlaceOfSupply")
                         .HasColumnType("text");
 
-                    b.Property<string>("PublicToken")
-                        .HasColumnType("text");
-
                     b.Property<string>("QuoteNumber")
                         .IsRequired()
                         .HasColumnType("text");
@@ -321,10 +321,6 @@ namespace WoodenHousesAPI.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ContactId");
-
-                    b.HasIndex("PublicToken")
-                        .IsUnique()
-                        .HasFilter("\"PublicToken\" IS NOT NULL");
 
                     b.ToTable("Quotes");
                 });

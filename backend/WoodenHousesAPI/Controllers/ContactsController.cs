@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 using WoodenHousesAPI.Data;
 using WoodenHousesAPI.DTOs.Contact;
 using WoodenHousesAPI.Models;
@@ -21,6 +22,7 @@ public class ContactsController(
     [EnableRateLimiting("strict")]
     public async Task<IActionResult> Submit([FromBody] CreateContactRequest request)
     {
+        // 1. Save the contact entry
         var contact = new Contact
         {
             Name        = request.Name,
@@ -35,27 +37,36 @@ public class ContactsController(
         };
 
         db.Contacts.Add(contact);
+        await db.SaveChangesAsync();
 
-        // Auto-subscribe to newsletter if opted in
+        // 2. Auto-subscribe to newsletter if opted in — separate save so a
+        //    duplicate-email constraint never rolls back the contact entry.
         if (request.Newsletter)
         {
-            var existing = db.NewsletterSubscribers
-                .Any(s => s.Email == request.Email);
+            var alreadySubscribed = await db.NewsletterSubscribers
+                .AnyAsync(s => s.Email == request.Email);
 
-            if (!existing)
+            if (!alreadySubscribed)
             {
-                db.NewsletterSubscribers.Add(new NewsletterSubscriber
+                try
                 {
-                    Email  = request.Email,
-                    Name   = request.Name,
-                    Source = "contact-form",
-                });
+                    db.NewsletterSubscribers.Add(new NewsletterSubscriber
+                    {
+                        Email  = request.Email,
+                        Name   = request.Name,
+                        Source = "contact-form",
+                    });
+                    await db.SaveChangesAsync();
+                }
+                catch (DbUpdateException)
+                {
+                    // Another request beat us to it (race condition on unique index).
+                    // Ignore — the contact was already saved successfully above.
+                }
             }
         }
 
-        await db.SaveChangesAsync();
-
-        // Notify admin via email (fire-and-forget)
+        // 3. Notify admin via email (fire-and-forget)
         var adminEmail = config["Email:FromAddress"] ?? "info@woodenhouseskenya.com";
         _ = emailService.SendContactNotificationAsync(
             adminEmail, request.Name, request.Email, request.Message);

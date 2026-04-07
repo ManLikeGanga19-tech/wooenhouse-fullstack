@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 using WoodenHousesAPI.DTOs.Auth;
 using WoodenHousesAPI.Services;
 
@@ -58,6 +59,31 @@ public class AuthController(IAuthService authService) : ControllerBase
         var role  = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "";
 
         return Ok(new { name, email, role });
+    }
+
+    /// <summary>Change password — requires current password verification.</summary>
+    [HttpPost("change-password")]
+    [Authorize]
+    public async Task<IActionResult> ChangePassword(
+        [FromBody] ChangePasswordRequest request,
+        [FromServices] WoodenHousesAPI.Data.AppDbContext db)
+    {
+        var email = User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Email)?.Value;
+        if (string.IsNullOrEmpty(email)) return Unauthorized();
+
+        var user = await db.AdminUsers.FirstOrDefaultAsync(u => u.Email == email, HttpContext.RequestAborted);
+        if (user is null) return Unauthorized();
+
+        if (!BCrypt.Net.BCrypt.Verify(request.CurrentPassword, user.PasswordHash))
+            return BadRequest(new { message = "Current password is incorrect." });
+
+        if (request.NewPassword.Length < 8)
+            return BadRequest(new { message = "Password must be at least 8 characters." });
+
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword, workFactor: 12);
+        await db.SaveChangesAsync();
+
+        return Ok(new { message = "Password updated successfully." });
     }
 
     /// <summary>Logout — clears the auth cookie.</summary>

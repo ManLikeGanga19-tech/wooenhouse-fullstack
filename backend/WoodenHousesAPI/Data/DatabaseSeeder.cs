@@ -16,6 +16,7 @@ public static class DatabaseSeeder
         await SeedAdminUserAsync(db, config, logger);
         await SeedSiteSettingsAsync(db, logger);
         await SeedServicesAsync(db, logger);
+        await SeedProjectsAsync(db, logger);
     }
 
     // ─── Admin User ──────────────────────────────────────────────────────────
@@ -131,5 +132,101 @@ public static class DatabaseSeeder
         db.Services.AddRange(services);
         await db.SaveChangesAsync();
         logger.LogInformation("Seeded {Count} services.", services.Count);
+    }
+
+    // ─── Projects (portfolio seed) ────────────────────────────────────────────
+    private static async Task SeedProjectsAsync(AppDbContext db, ILogger logger)
+    {
+        if (db.Projects.Any())
+        {
+            logger.LogInformation("Projects already exist — skipping seed.");
+            return;
+        }
+
+        var projects = new List<Project>
+        {
+            new()
+            {
+                Title       = "Off-the-Grid Cottage in Nanyuki",
+                Slug        = "off-the-grid-cottage-nanyuki",
+                Description = "A fully off-grid wooden cottage nestled in the foothills of Mt. Kenya. Solar-powered, rainwater harvesting, and built entirely from sustainably sourced timber.",
+                Location    = "Nanyuki, Kenya",
+                Category    = "Wooden Houses",
+                CoverImage  = "/projects/off-nanyuki.jpg",
+                Images      = "[\"/projects/off-nanyuki.jpg\"]",
+                Featured    = true,
+                Status      = "published",
+                CompletedAt = new DateTime(2024, 8, 15, 0, 0, 0, DateTimeKind.Utc),
+            },
+            new()
+            {
+                Title       = "Holiday Home, Naivasha",
+                Slug        = "holiday-home-naivasha",
+                Description = "A lakeside holiday retreat featuring open-plan living, wraparound decking, and panoramic views of Lake Naivasha.",
+                Location    = "Naivasha, Kenya",
+                Category    = "Wooden Houses",
+                CoverImage  = "/projects/holiday.jpg",
+                Images      = "[\"/projects/holiday.jpg\"]",
+                Featured    = true,
+                Status      = "published",
+                CompletedAt = new DateTime(2024, 5, 20, 0, 0, 0, DateTimeKind.Utc),
+            },
+            new()
+            {
+                Title       = "Staff Meeting Room, Taita",
+                Slug        = "staff-meeting-room-taita",
+                Description = "A purpose-built commercial meeting room for a hospitality group. Accommodates 30 people with full AV integration and natural ventilation.",
+                Location    = "Taita Taveta, Kenya",
+                Category    = "Commercial Buildings",
+                CoverImage  = "/projects/staff.jpg",
+                Images      = "[\"/projects/staff.jpg\"]",
+                Featured    = false,
+                Status      = "published",
+                CompletedAt = new DateTime(2023, 11, 10, 0, 0, 0, DateTimeKind.Utc),
+            },
+            new()
+            {
+                Title       = "Custom Kitchen Fittings",
+                Slug        = "custom-kitchen-fittings",
+                Description = "Bespoke hardwood kitchen cabinetry and worktops for a residential property in Nairobi. Crafted from locally sourced mvule and cypress.",
+                Location    = "Nairobi, Kenya",
+                Category    = "Furniture & Carpentry",
+                CoverImage  = "/projects/kitchen.jpg",
+                Images      = "[\"/projects/kitchen.jpg\"]",
+                Featured    = false,
+                Status      = "published",
+                CompletedAt = new DateTime(2024, 2, 28, 0, 0, 0, DateTimeKind.Utc),
+            },
+            new()
+            {
+                Title       = "Foldable Garden Chairs",
+                Slug        = "foldable-garden-chairs",
+                Description = "A production run of 50 foldable hardwood garden chairs for an eco-resort. Lightweight, weather-treated, and stackable for easy storage.",
+                Location    = "Nairobi, Kenya",
+                Category    = "Furniture & Carpentry",
+                CoverImage  = "/projects/fold-chair.jpg",
+                Images      = "[\"/projects/fold-chair.jpg\"]",
+                Featured    = false,
+                Status      = "published",
+                CompletedAt = new DateTime(2024, 4, 5, 0, 0, 0, DateTimeKind.Utc),
+            },
+            new()
+            {
+                Title       = "Garden Benches Collection",
+                Slug        = "garden-benches-collection",
+                Description = "A series of handcrafted outdoor garden benches installed along walking paths at a private estate in Karen. Treated for UV and moisture resistance.",
+                Location    = "Karen, Nairobi",
+                Category    = "Outdoor Structures",
+                CoverImage  = "/projects/garden.jpg",
+                Images      = "[\"/projects/garden.jpg\"]",
+                Featured    = false,
+                Status      = "published",
+                CompletedAt = new DateTime(2023, 9, 18, 0, 0, 0, DateTimeKind.Utc),
+            },
+        };
+
+        db.Projects.AddRange(projects);
+        await db.SaveChangesAsync();
+        logger.LogInformation("Seeded {Count} projects.", projects.Count);
     }
 }

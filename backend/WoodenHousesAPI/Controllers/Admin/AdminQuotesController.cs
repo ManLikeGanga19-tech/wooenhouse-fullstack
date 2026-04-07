@@ -10,7 +10,7 @@ namespace WoodenHousesAPI.Controllers.Admin;
 [ApiController]
 [Route("api/admin/quotes")]
 [Authorize]
-public class AdminQuotesController(AppDbContext db, IEmailService emailService) : ControllerBase
+public class AdminQuotesController(AppDbContext db, IEmailService emailService, IConfiguration config) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetAll(
@@ -48,12 +48,14 @@ public class AdminQuotesController(AppDbContext db, IEmailService emailService) 
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] Quote quote)
     {
-        // Auto-generate quote number
-        var count       = await db.Quotes.CountAsync();
+        var count         = await db.Quotes.CountAsync();
         quote.Id          = Guid.NewGuid();
         quote.QuoteNumber = $"WHK-{DateTime.UtcNow.Year}-{(count + 1):D4}";
         quote.CreatedAt   = DateTime.UtcNow;
         quote.UpdatedAt   = DateTime.UtcNow;
+
+        // Backend owns all price computation
+        quote.FinalPrice = ComputeFinalPrice(quote);
 
         db.Quotes.Add(quote);
         await db.SaveChangesAsync();
@@ -66,54 +68,98 @@ public class AdminQuotesController(AppDbContext db, IEmailService emailService) 
         var quote = await db.Quotes.Include(q => q.LineItems).FirstOrDefaultAsync(q => q.Id == id);
         if (quote is null) return NotFound();
 
-        quote.CustomerName      = updated.CustomerName;
-        quote.CustomerEmail     = updated.CustomerEmail;
-        quote.CustomerPhone     = updated.CustomerPhone;
-        quote.HouseType         = updated.HouseType;
-        quote.HouseSize         = updated.HouseSize;
-        quote.Location          = updated.Location;
-        quote.BasePrice         = updated.BasePrice;
-        quote.Discount          = updated.Discount;
-        quote.FinalPrice        = updated.FinalPrice;
-        quote.PaymentTerms      = updated.PaymentTerms;
-        quote.DeliveryTimeline  = updated.DeliveryTimeline;
-        quote.ValidityDays      = updated.ValidityDays;
-        quote.Status            = updated.Status;
-        quote.Notes             = updated.Notes;
-        quote.UpdatedAt         = DateTime.UtcNow;
+        quote.CustomerName     = updated.CustomerName;
+        quote.CustomerEmail    = updated.CustomerEmail;
+        quote.CustomerPhone    = updated.CustomerPhone;
+        quote.HouseType        = updated.HouseType;
+        quote.HouseSize        = updated.HouseSize;
+        quote.Location         = updated.Location;
+        quote.PlaceOfSupply    = updated.PlaceOfSupply;
+        quote.CountryOfSupply  = updated.CountryOfSupply;
+        quote.BasePrice        = updated.BasePrice;
+        quote.Discount         = updated.Discount;
+        quote.PaymentTerms     = updated.PaymentTerms;
+        quote.DeliveryTimeline = updated.DeliveryTimeline;
+        quote.ValidityDays     = updated.ValidityDays;
+        quote.Status           = updated.Status;
+        quote.Notes            = updated.Notes;
+        quote.UpdatedAt        = DateTime.UtcNow;
 
-        // Replace line items
+        // Replace line items, then recompute price server-side
         db.QuoteLineItems.RemoveRange(quote.LineItems);
-        quote.LineItems = updated.LineItems;
+        quote.LineItems  = updated.LineItems;
+        quote.FinalPrice = ComputeFinalPrice(quote);
 
         await db.SaveChangesAsync();
         return Ok(quote);
     }
 
+    // ─── Price computation lives here — never trust the client ───────────────
+    private static decimal ComputeFinalPrice(Quote q)
+    {
+        var subtotal = q.LineItems.Any()
+            ? q.LineItems.Sum(li => li.Quantity * li.UnitPrice)
+            : q.BasePrice;
+
+        return Math.Max(0, subtotal - q.Discount);
+    }
+
     [HttpPost("{id}/send")]
     public async Task<IActionResult> SendToCustomer(Guid id)
     {
-        var quote = await db.Quotes.FindAsync(id);
+        var quote = await db.Quotes.Include(q => q.LineItems).FirstOrDefaultAsync(q => q.Id == id);
         if (quote is null) return NotFound();
 
-        var html = $"""
-            <h1>Your Quote from Wooden Houses Kenya</h1>
-            <p>Dear {quote.CustomerName},</p>
-            <p>Please find your quote <strong>{quote.QuoteNumber}</strong> attached.</p>
-            <p>Total: <strong>KES {quote.FinalPrice:N0}</strong></p>
-            <p>Valid for {quote.ValidityDays} days.</p>
-            <p>Contact us at info@woodenhouseskenya.com for any queries.</p>
-            """;
+        // Generate a public token if this is the first time sending
+        if (string.IsNullOrEmpty(quote.PublicToken))
+            quote.PublicToken = Guid.NewGuid().ToString("N");
+
+        var frontendUrl  = config["Frontend:Url"] ?? "https://woodenhouseskenya.com";
+        var publicLink   = $"{frontendUrl}/quote/{quote.PublicToken}";
+        var validUntil   = quote.CreatedAt.AddDays(quote.ValidityDays).ToString("MMMM dd, yyyy");
+        var projectRow   = string.IsNullOrEmpty(quote.HouseType) ? "" :
+            $"<tr><td style='padding:5px 0;color:#6b7280;'>Project</td><td style='padding:5px 0;text-align:right;'>{quote.HouseType}{(string.IsNullOrEmpty(quote.HouseSize) ? "" : $" — {quote.HouseSize}")}</td></tr>";
+        var domainLabel  = frontendUrl.Replace("https://", "").Replace("http://", "");
+
+        var html =
+            "<!DOCTYPE html><html><head><meta charset='utf-8'></head><body style='margin:0;padding:0;background:#f5f5f5;font-family:Arial,sans-serif;color:#1a1a1a;'>" +
+            "<div style='max-width:600px;margin:32px auto;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);'>" +
+              "<div style='background:#8B5E3C;padding:28px 32px;text-align:center;'>" +
+                "<h1 style='color:#fff;margin:0;font-size:22px;'>Wooden Houses Kenya</h1>" +
+                "<p style='color:#e8d5c4;margin:6px 0 0;font-size:13px;'>Your Quotation is Ready</p>" +
+              "</div>" +
+              "<div style='padding:28px 32px;'>" +
+                $"<p style='font-size:15px;'>Dear <strong>{quote.CustomerName}</strong>,</p>" +
+                "<p>Thank you for your interest. Please find your quotation details below.</p>" +
+                "<table style='width:100%;background:#faf8f5;border:1px solid #e8d5c4;border-radius:6px;padding:16px 20px;border-collapse:collapse;margin-bottom:20px;'>" +
+                  "<tbody>" +
+                    $"<tr><td style='padding:5px 0;color:#6b7280;'>Quotation #</td><td style='padding:5px 0;text-align:right;'><strong>{quote.QuoteNumber}</strong></td></tr>" +
+                    projectRow +
+                    $"<tr><td style='padding:5px 0;color:#6b7280;'>Valid Until</td><td style='padding:5px 0;text-align:right;'>{validUntil}</td></tr>" +
+                    $"<tr><td style='padding:10px 0 5px;font-weight:700;font-size:16px;border-top:1px solid #e8d5c4;color:#8B5E3C;'>Total</td><td style='padding:10px 0 5px;text-align:right;font-weight:700;font-size:16px;border-top:1px solid #e8d5c4;color:#8B5E3C;'>KES {quote.FinalPrice:N0}</td></tr>" +
+                  "</tbody>" +
+                "</table>" +
+                "<div style='text-align:center;margin:24px 0;'>" +
+                  $"<a href='{publicLink}' style='background:#8B5E3C;color:#fff;text-decoration:none;padding:13px 28px;border-radius:6px;font-size:15px;font-weight:600;display:inline-block;'>View Full Quotation &rarr;</a>" +
+                "</div>" +
+                $"<p style='font-size:13px;color:#6b7280;'>If the button doesn't work, copy this link:<br><a href='{publicLink}' style='color:#8B5E3C;'>{publicLink}</a></p>" +
+              "</div>" +
+              "<div style='background:#f5f0eb;padding:16px 32px;text-align:center;font-size:12px;color:#6b7280;'>" +
+                "<p>Questions? Email <a href='mailto:info@woodenhouseskenya.com' style='color:#8B5E3C;'>info@woodenhouseskenya.com</a> or call <a href='tel:+254716111187' style='color:#8B5E3C;'>+254 716 111 187</a></p>" +
+                $"<p style='margin-top:8px;'>Wooden Houses Kenya &middot; Naivasha, Kenya &middot; <a href='{frontendUrl}' style='color:#8B5E3C;'>{domainLabel}</a></p>" +
+              "</div>" +
+            "</div>" +
+            "</body></html>";
 
         await emailService.SendQuoteToCustomerAsync(
             quote.CustomerEmail, quote.CustomerName, quote.QuoteNumber, html);
 
-        quote.Status = "sent";
-        quote.SentAt = DateTime.UtcNow;
+        quote.Status    = "sent";
+        quote.SentAt    = DateTime.UtcNow;
         quote.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
 
-        return Ok(new { message = "Quote sent successfully." });
+        return Ok(new { message = "Quote sent successfully.", publicLink });
     }
 
     [HttpDelete("{id}")]

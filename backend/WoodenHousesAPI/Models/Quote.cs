@@ -15,6 +15,8 @@ public class Quote
     public string?   HouseType        { get; set; }
     public string?   HouseSize        { get; set; }
     public string?   Location         { get; set; }
+    public string?   PlaceOfSupply    { get; set; }
+    public string?   CountryOfSupply  { get; set; }
 
     // Pricing
     public decimal   BasePrice        { get; set; }
@@ -29,6 +31,9 @@ public class Quote
     // Status: draft | sent | viewed | accepted | rejected | expired
     public string    Status           { get; set; } = "draft";
     public string?   Notes            { get; set; }
+
+    // Public access token — generated when the quote is sent; used for /quote/{token}
+    public string?   PublicToken      { get; set; }
 
     public DateTime  CreatedAt        { get; set; } = DateTime.UtcNow;
     public DateTime  UpdatedAt        { get; set; } = DateTime.UtcNow;
