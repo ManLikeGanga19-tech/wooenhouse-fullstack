@@ -1,0 +1,28 @@
+User-agent: *
+Allow: /
+
+# Block admin panel from indexing
+Disallow: /dashboard/
+Disallow: /login
+Disallow: /api/
+
+# Block customer quote pages from being indexed
+Disallow: /quote/
+
+Sitemap: https://woodenhouseskenya.com/sitemap.xml
+
+# LLM / AI crawlers
+User-agent: GPTBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+# LLMs.txt — AI-readable site summary
+# https://woodenhouseskenya.com/llms.txt
