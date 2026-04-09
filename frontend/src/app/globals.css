@@ -166,3 +166,10 @@ html, body {
 *, *::before, *::after {
   box-sizing: border-box;
 }
+
+/* Push Tawk.to chat widget behind the mobile nav drawer overlay (z-50) */
+body.nav-open #tawk-bubble-container,
+body.nav-open [id^="tawk-"] iframe,
+body.nav-open .tawk-min-container {
+  z-index: 10 !important;
+}

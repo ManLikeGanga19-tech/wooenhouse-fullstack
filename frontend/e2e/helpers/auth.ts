@@ -26,7 +26,7 @@ export async function loginViaApi(
   // Extract the Set-Cookie header and inject it into the browser context
   const rawCookies: string[] = Array.isArray(res.headers["set-cookie"])
     ? res.headers["set-cookie"]
-    : [res.headers["set-cookie"] as string];
+    : [res.headers["set-cookie"] as unknown as string];
 
   for (const raw of rawCookies.filter(Boolean)) {
     const [nameValue, ...attributes] = raw.split(";");
