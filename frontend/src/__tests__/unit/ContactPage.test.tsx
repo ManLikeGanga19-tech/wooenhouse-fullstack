@@ -1,9 +1,9 @@
 /**
  * Tests for the Contact page form.
  *
- * We mock the entire `@/lib/api/client` module so the component under test
- * never touches axios or the network.  This keeps the tests fast and focused
- * on the UI behaviour (success/error banners, form reset, loading state).
+ * We mock `@/lib/api/client` so no network calls happen, and mock `sonner`
+ * because the component uses toast notifications (not inline DOM text) for
+ * success/error feedback.
  */
 
 import React from "react";
@@ -12,17 +12,25 @@ import userEvent from "@testing-library/user-event";
 
 // ─── Module mocks ─────────────────────────────────────────────────────────────
 
-// Mock next/image — strip Next.js-only props (fill, priority) before passing to <img>
 jest.mock("next/image", () => ({
   __esModule: true,
   default: ({ fill: _fill, priority: _priority, ...props }: Record<string, unknown>) =>
     React.createElement("img", props as React.ImgHTMLAttributes<HTMLImageElement>),
 }));
 
-// Mock AOS — browser animation library not available in jsdom
 jest.mock("aos", () => ({ init: jest.fn(), refresh: jest.fn() }));
 
-// Mock the API module — we control responses per-test
+// Mock Sonner — component calls toast.success / toast.error
+const mockToastSuccess = jest.fn();
+const mockToastError   = jest.fn();
+jest.mock("sonner", () => ({
+  toast: {
+    success: (...args: unknown[]) => mockToastSuccess(...args),
+    error:   (...args: unknown[]) => mockToastError(...args),
+  },
+  Toaster: () => null,
+}));
+
 const mockSubmit = jest.fn();
 jest.mock("@/lib/api/client", () => ({
   api: {
@@ -32,7 +40,7 @@ jest.mock("@/lib/api/client", () => ({
   },
 }));
 
-// ─── Import component AFTER mocks are set up ──────────────────────────────────
+// ─── Import component AFTER mocks ────────────────────────────────────────────
 import ContactPage from "@/app/(site)/contact/page";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -47,7 +55,11 @@ async function fillAndSubmit(user: ReturnType<typeof userEvent.setup>) {
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
-beforeEach(() => mockSubmit.mockReset());
+beforeEach(() => {
+  mockSubmit.mockReset();
+  mockToastSuccess.mockReset();
+  mockToastError.mockReset();
+});
 
 describe("ContactPage", () => {
   it("renders the contact form", () => {
@@ -57,7 +69,7 @@ describe("ContactPage", () => {
     expect(screen.getByRole("button", { name: /send message/i })).toBeInTheDocument();
   });
 
-  it("shows success banner after valid submission", async () => {
+  it("calls toast.success after valid submission", async () => {
     mockSubmit.mockResolvedValue({ data: { message: "Thank you!" } });
 
     const user = userEvent.setup();
@@ -66,11 +78,13 @@ describe("ContactPage", () => {
     await fillAndSubmit(user);
 
     await waitFor(() => {
-      expect(screen.getByText(/message sent successfully/i)).toBeInTheDocument();
+      expect(mockToastSuccess).toHaveBeenCalledWith(
+        expect.stringMatching(/message sent successfully/i)
+      );
     });
   });
 
-  it("resets form fields after successful submission", async () => {
+  it("hides the form after successful submission", async () => {
     mockSubmit.mockResolvedValue({ data: { message: "OK" } });
 
     const user = userEvent.setup();
@@ -78,14 +92,13 @@ describe("ContactPage", () => {
 
     await fillAndSubmit(user);
 
+    // After success, submitted=true unmounts the form
     await waitFor(() => {
-      expect(screen.getByText(/message sent successfully/i)).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /send message/i })).not.toBeInTheDocument();
     });
-
-    expect((screen.getByLabelText(/first name/i) as HTMLInputElement).value).toBe("");
   });
 
-  it("shows error banner when the API returns an error", async () => {
+  it("calls toast.error when the API returns an error", async () => {
     mockSubmit.mockRejectedValue(new Error("Too many requests, please try again later."));
 
     const user = userEvent.setup();
@@ -94,13 +107,16 @@ describe("ContactPage", () => {
     await fillAndSubmit(user);
 
     await waitFor(() => {
-      expect(screen.getByText(/failed to send message/i)).toBeInTheDocument();
-      expect(screen.getByText(/too many requests/i)).toBeInTheDocument();
+      expect(mockToastError).toHaveBeenCalledWith(
+        expect.stringMatching(/failed to send message/i),
+        expect.objectContaining({
+          description: expect.stringMatching(/too many requests/i),
+        })
+      );
     });
   });
 
   it("disables submit button while submitting", async () => {
-    // Delay resolution so we can observe the loading state
     mockSubmit.mockImplementation(
       () => new Promise(resolve => setTimeout(() => resolve({ data: { message: "OK" } }), 100))
     );
@@ -116,12 +132,16 @@ describe("ContactPage", () => {
     const button = screen.getByRole("button", { name: /send message/i });
     await user.click(button);
 
+    // Button must be disabled immediately while the API call is in-flight
     expect(button).toBeDisabled();
 
-    await waitFor(() => expect(button).not.toBeDisabled());
+    // After resolve, the form unmounts (submitted=true hides it)
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: /send message/i })).not.toBeInTheDocument();
+    });
   });
 
-  it("shows fallback error message when error has no message", async () => {
+  it("calls toast.error with fallback message when error has no message", async () => {
     mockSubmit.mockRejectedValue("unexpected string error");
 
     const user = userEvent.setup();
@@ -130,8 +150,12 @@ describe("ContactPage", () => {
     await fillAndSubmit(user);
 
     await waitFor(() => {
-      expect(screen.getByText(/failed to send message/i)).toBeInTheDocument();
-      expect(screen.getByText(/something went wrong/i)).toBeInTheDocument();
+      expect(mockToastError).toHaveBeenCalledWith(
+        expect.stringMatching(/failed to send message/i),
+        expect.objectContaining({
+          description: expect.stringMatching(/something went wrong/i),
+        })
+      );
     });
   });
 });
