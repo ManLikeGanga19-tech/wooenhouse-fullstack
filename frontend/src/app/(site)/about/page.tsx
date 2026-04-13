@@ -18,7 +18,7 @@ export default function AboutPage() {
             <div className="relative w-full py-8 sm:py-12 border-b border-gray-200 overflow-hidden">
 
                 <Image
-                    src="/about/about.jpg"
+                    src="/about.jpg"
                     alt="About Background"
                     fill
                     className="object-cover object-center"
@@ -90,7 +90,7 @@ export default function AboutPage() {
 
                     <Image
                         data-aos="fade-left"
-                        src="/about/about-1.jpg"
+                        src="/why.jpg"
                         width={700}
                         height={500}
                         alt="Who We Are"
