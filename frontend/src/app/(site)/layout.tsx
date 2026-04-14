@@ -1,7 +1,9 @@
 import Navbar from "@/components/core/Navbar";
 import Footer from "@/components/core/Footer";
 import AosInit from "@/components/core/AosInit";
+import CookieBanner from "@/components/core/CookieBanner";
 import TawkToChat from "@/components/TawkToChat";
+import { getCookieConsent } from "@/actions/cookies";
 
 const jsonLd = {
   "@context": "https://schema.org",
@@ -50,11 +52,14 @@ const jsonLd = {
   },
 };
 
-export default function SiteLayout({
+export default async function SiteLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const consent = await getCookieConsent();
+  const showBanner = consent === null;
+
   return (
     <>
       {/* Structured data for search engines and LLMs */}
@@ -69,6 +74,7 @@ export default function SiteLayout({
         <TawkToChat />
       </main>
       <Footer />
+      {showBanner && <CookieBanner />}
     </>
   );
 }

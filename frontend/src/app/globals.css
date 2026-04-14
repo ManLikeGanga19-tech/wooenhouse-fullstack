@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "aos/dist/aos.css";
 
 /* Force light mode - disable dark mode */
 @custom-variant dark (&:is(.force-light-mode-disabled *));
