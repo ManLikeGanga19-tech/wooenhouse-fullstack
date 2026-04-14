@@ -2,6 +2,19 @@
 @import "tw-animate-css";
 @import "aos/dist/aos.css";
 
+/* ── AOS safety net ──────────────────────────────────────────────────────────
+ * AOS CSS hides [data-aos] elements with opacity:0 unconditionally.
+ * body.aos-init is added by AOS only after JS runs and AOS.init() is called.
+ * Until then (SSR, slow JS, navigation in progress) ensure content is visible.
+ * This means content is always readable; animations are progressive enhancement.
+ * ─────────────────────────────────────────────────────────────────────────── */
+body:not(.aos-init) [data-aos] {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+    pointer-events: auto !important;
+}
+
 /* Force light mode - disable dark mode */
 @custom-variant dark (&:is(.force-light-mode-disabled *));
 
