@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Mail, Lock, AlertCircle } from "lucide-react";
+import { Mail, Lock, AlertCircle, Eye, EyeOff } from "lucide-react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,10 +16,11 @@ export default function LoginForm() {
     const searchParams = useSearchParams();
     const login        = useAuthStore((state) => state.login);
 
-    const [email,     setEmail]     = useState("");
-    const [password,  setPassword]  = useState("");
-    const [error,     setError]     = useState("");
-    const [isLoading, setIsLoading] = useState(false);
+    const [email,       setEmail]       = useState("");
+    const [password,    setPassword]    = useState("");
+    const [showPassword, setShowPassword] = useState(false);
+    const [error,       setError]       = useState("");
+    const [isLoading,   setIsLoading]   = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -99,14 +100,23 @@ export default function LoginForm() {
                                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                                 <Input
                                     id="password"
-                                    type="password"
+                                    type={showPassword ? "text" : "password"}
                                     placeholder="Enter your password"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     required
                                     autoComplete="current-password"
-                                    className="pl-10 border-2 focus:border-[#8B5E3C] h-11"
+                                    className="pl-10 pr-10 border-2 focus:border-[#8B5E3C] h-11"
                                 />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(v => !v)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                                    tabIndex={-1}
+                                    aria-label={showPassword ? "Hide password" : "Show password"}
+                                >
+                                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                </button>
                             </div>
                         </div>
 

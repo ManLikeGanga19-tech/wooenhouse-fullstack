@@ -55,6 +55,9 @@ async function fillAndSubmit(user: ReturnType<typeof userEvent.setup>) {
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
+// userEvent.type() is slow (key-by-key) — give async tests enough headroom
+jest.setTimeout(15_000);
+
 beforeEach(() => {
   mockSubmit.mockReset();
   mockToastSuccess.mockReset();

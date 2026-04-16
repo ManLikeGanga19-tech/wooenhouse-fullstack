@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Testcontainers.PostgreSql;
 using WoodenHousesAPI.Data;
 using WoodenHousesAPI.Models;
+using WoodenHousesAPI.Services;
 
 namespace WoodenHousesAPI.Tests.Integration.Helpers;
 
@@ -70,6 +71,15 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>, IAsyncL
 
             services.AddDbContext<AppDbContext>(options =>
                 options.UseNpgsql(_postgres.GetConnectionString()));
+
+            // Replace the real email service with a no-op so tests never
+            // attempt to connect to an SMTP server (which causes 2-minute timeouts).
+            var emailDescriptor = services.SingleOrDefault(
+                d => d.ServiceType == typeof(IEmailService));
+            if (emailDescriptor != null)
+                services.Remove(emailDescriptor);
+
+            services.AddScoped<IEmailService, NullEmailService>();
         });
     }
 
@@ -104,7 +114,7 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>, IAsyncL
             });
         }
 
-        if (!db.Contacts.Any())
+        if (!db.Contacts.Any(c => c.Email == "alice@test.com"))
         {
             db.Contacts.AddRange(
                 new Contact { Name = "Alice Kamau", Email = "alice@test.com", Status = "new",       Priority = "high",   ServiceType = "wooden-house" },
@@ -113,7 +123,7 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>, IAsyncL
             );
         }
 
-        if (!db.NewsletterSubscribers.Any())
+        if (!db.NewsletterSubscribers.Any(s => s.Email == "subscriber@test.com"))
         {
             db.NewsletterSubscribers.Add(new NewsletterSubscriber
             {
@@ -124,7 +134,9 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>, IAsyncL
             });
         }
 
-        if (!db.Projects.Any())
+        // DatabaseSeeder (run during host startup) may have already seeded real projects,
+        // so check for the specific slug rather than db.Projects.Any().
+        if (!db.Projects.Any(p => p.Slug == "test-project-nairobi"))
         {
             db.Projects.Add(new Project
             {
@@ -137,7 +149,8 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>, IAsyncL
             });
         }
 
-        if (!db.Services.Any())
+        // DatabaseSeeder may already have seeded services — check specific slug
+        if (!db.Services.Any(s => s.Slug == "custom-wooden-houses"))
         {
             db.Services.Add(new Models.Service
             {
@@ -164,4 +177,20 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>, IAsyncL
         response.EnsureSuccessStatusCode();
         return client;
     }
+}
+
+/// <summary>
+/// No-op email service for integration tests — swallows all sends so
+/// tests never attempt a real SMTP connection (which causes 2-minute timeouts).
+/// </summary>
+internal sealed class NullEmailService : IEmailService
+{
+    public Task SendContactNotificationAsync(string toAdmin, string fromName, string fromEmail, string? message)
+        => Task.CompletedTask;
+
+    public Task SendQuoteToCustomerAsync(string toEmail, string customerName, string quoteNumber, string quoteHtml)
+        => Task.CompletedTask;
+
+    public Task SendNewsletterAsync(IEnumerable<string> recipients, string subject, string htmlBody)
+        => Task.CompletedTask;
 }

@@ -26,13 +26,15 @@ public class AuthController(IAuthService authService) : ControllerBase
             return Unauthorized(new { message = "Invalid credentials." });
         }
 
-        // Set JWT in an httpOnly, Secure, SameSite=Strict cookie
-        // This protects against XSS stealing the token from JavaScript
+        // In production the API and frontend are on different domains, so we need
+        // SameSite=None; Secure to allow the browser to send the cookie cross-site.
+        // In development (localhost) SameSite=Lax is sufficient.
+        var isLocalhost = HttpContext.Request.Host.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase);
         var cookieOptions = new CookieOptions
         {
             HttpOnly  = true,
-            Secure    = !HttpContext.Request.Host.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase),
-            SameSite  = SameSiteMode.Strict,
+            Secure    = !isLocalhost,
+            SameSite  = isLocalhost ? SameSiteMode.Lax : SameSiteMode.None,
             Expires   = result.ExpiresAt,
             Path      = "/",
         };
@@ -91,11 +93,12 @@ public class AuthController(IAuthService authService) : ControllerBase
     [Authorize]
     public IActionResult Logout()
     {
+        var isLocalhost = HttpContext.Request.Host.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase);
         Response.Cookies.Delete(CookieName, new CookieOptions
         {
             HttpOnly = true,
-            Secure   = true,
-            SameSite = SameSiteMode.Strict,
+            Secure   = !isLocalhost,
+            SameSite = isLocalhost ? SameSiteMode.Lax : SameSiteMode.None,
             Path     = "/",
         });
 
