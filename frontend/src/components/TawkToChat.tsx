@@ -120,7 +120,7 @@ export default function TawkToChat({
         window.Tawk_API = {} as Window['Tawk_API'];
         window.Tawk_LoadStart = new Date();
 
-        // Event: Widget loaded
+        // Event handlers (onLoad is set later alongside the repositioner)
         if (window.Tawk_API) {
             window.Tawk_API.onLoad = function () {
                 console.log('[Tawk.to] Widget loaded successfully');
@@ -177,6 +177,47 @@ export default function TawkToChat({
             };
         }
 
+        // Reposition the widget container to bottom-left.
+        // Tawk.to injects a div with inline right:0 styles, so we watch for it
+        // and override with left-side positioning as soon as it appears.
+        const repositionWidget = (el: HTMLElement) => {
+            el.style.setProperty('left',  '20px', 'important');
+            el.style.setProperty('right', 'auto', 'important');
+        };
+
+        // Try immediately (widget may already be in DOM on route change)
+        const existing = document.getElementById('tawk-bubble-container');
+        if (existing) repositionWidget(existing);
+
+        // Watch for Tawk.to injecting its container
+        const observer = new MutationObserver((mutations) => {
+            for (const mutation of mutations) {
+                for (const node of Array.from(mutation.addedNodes)) {
+                    if (node instanceof HTMLElement) {
+                        // Direct match
+                        if (node.id === 'tawk-bubble-container') {
+                            repositionWidget(node);
+                        }
+                        // Or a child of the added node
+                        const child = node.querySelector<HTMLElement>('#tawk-bubble-container');
+                        if (child) repositionWidget(child);
+                    }
+                }
+            }
+        });
+
+        observer.observe(document.body, { childList: true, subtree: true });
+
+        // Wrap the onLoad handler to also reposition after the widget loads
+        if (window.Tawk_API) {
+            const originalOnLoad = window.Tawk_API.onLoad;
+            window.Tawk_API.onLoad = function () {
+                const container = document.getElementById('tawk-bubble-container');
+                if (container) repositionWidget(container);
+                if (originalOnLoad) originalOnLoad();
+            };
+        }
+
         // Load the Tawk.to script
         const script = document.createElement('script');
         script.async = true;
@@ -194,6 +235,7 @@ export default function TawkToChat({
 
         // Cleanup on unmount
         return () => {
+            observer.disconnect();
             if (script.parentNode) {
                 script.parentNode.removeChild(script);
             }
