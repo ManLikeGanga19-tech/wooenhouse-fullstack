@@ -7,9 +7,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { Separator } from "@/components/ui/separator"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ImageUpload } from "@/components/ui/image-upload"
+import MarkdownEditor from "@/components/blog/MarkdownEditor"
 import { api } from "@/lib/api/client"
 import { toast } from "sonner"
 
@@ -46,7 +46,6 @@ export default function NewBlogPostPage() {
 
     const handleSave = async () => {
         if (!form.title.trim())   { toast.error("Title is required");   return }
-        if (!form.slug.trim())    { toast.error("Slug is required");    return }
         if (!form.excerpt.trim()) { toast.error("Excerpt is required"); return }
         if (!form.content.trim()) { toast.error("Content is required"); return }
         setSaving(true)
@@ -65,96 +64,144 @@ export default function NewBlogPostPage() {
     }
 
     return (
-        <div className="space-y-6">
-            <div className="flex items-center gap-4">
-                <Button variant="outline" size="icon" onClick={() => router.push(withQs("/dashboard/blog"))} className="border-2">
-                    <ArrowLeft size={20} />
+        <div className="space-y-5">
+
+            {/* Header */}
+            <div className="flex items-center gap-3">
+                <Button
+                    variant="outline" size="icon"
+                    onClick={() => router.push(withQs("/dashboard/blog"))}
+                    className="border-2 shrink-0"
+                >
+                    <ArrowLeft size={18} />
                 </Button>
-                <div className="flex-1">
-                    <h1 className="text-2xl font-bold" style={{ color: "#8B5E3C" }}>New Blog Post</h1>
-                </div>
-                <Button onClick={handleSave} disabled={saving} className="text-white" style={{ backgroundColor: "#8B5E3C" }}>
-                    <Save size={16} className="mr-2" /> {saving ? "Saving..." : "Save Post"}
+                <h1 className="flex-1 text-xl font-bold" style={{ color: "#8B5E3C" }}>New Post</h1>
+                <Button
+                    onClick={handleSave} disabled={saving}
+                    className="text-white shrink-0"
+                    style={{ backgroundColor: "#8B5E3C" }}
+                >
+                    <Save size={15} className="mr-1.5" />
+                    {saving ? "Saving…" : "Save Post"}
                 </Button>
             </div>
 
-            <div className="rounded-lg border-2 border-gray-200 bg-white p-6 space-y-6">
-                <h3 className="font-semibold text-lg" style={{ color: "#8B5E3C" }}>Post Details</h3>
-                <div className="grid sm:grid-cols-2 gap-4">
-                    <div className="space-y-2 sm:col-span-2">
-                        <Label>Title *</Label>
-                        <Input value={form.title} onChange={e => handleTitle(e.target.value)} className="border-2" placeholder="e.g. Kutoka Msitu Hadi Mlangoni" />
+            {/* Title */}
+            <input
+                type="text"
+                value={form.title}
+                onChange={e => handleTitle(e.target.value)}
+                placeholder="Article title…"
+                className="w-full text-2xl sm:text-3xl font-bold text-gray-900 placeholder:text-gray-300 border-0 border-b-2 border-gray-200 focus:border-[#8B5E3C] focus:outline-none pb-3 bg-transparent transition-colors"
+            />
+
+            {/* Two-column layout */}
+            <div className="grid lg:grid-cols-[1fr_300px] gap-5 items-start">
+
+                {/* LEFT — Content editor */}
+                <div className="space-y-4">
+                    <div>
+                        <Label className="mb-2 block text-sm font-semibold text-gray-700">
+                            Excerpt <span className="font-normal text-gray-400">(shown in article cards)</span>
+                        </Label>
+                        <Textarea
+                            value={form.excerpt}
+                            onChange={e => set("excerpt", e.target.value)}
+                            rows={3}
+                            className="border-2 resize-none text-sm"
+                            placeholder="A short 1–2 sentence summary of the article that will appear on the blog listing page."
+                        />
                     </div>
-                    <div className="space-y-2">
-                        <Label>Slug *</Label>
-                        <Input value={form.slug} onChange={e => set("slug", e.target.value)} className="border-2" placeholder="kutoka-msitu-hadi-mlangoni" />
+
+                    <div>
+                        <Label className="mb-2 block text-sm font-semibold text-gray-700">
+                            Content <span className="font-normal text-gray-400">(Markdown — use the toolbar or type directly)</span>
+                        </Label>
+                        <MarkdownEditor
+                            value={form.content}
+                            onChange={v => set("content", v)}
+                        />
                     </div>
-                    <div className="space-y-2">
-                        <Label>Category</Label>
-                        <Select value={form.category} onValueChange={v => set("category", v)}>
-                            <SelectTrigger className="border-2"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                {CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Author</Label>
-                        <Input value={form.author} onChange={e => set("author", e.target.value)} className="border-2" />
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Read Time (minutes)</Label>
-                        <Input type="number" min={1} max={60} value={form.readTimeMinutes} onChange={e => set("readTimeMinutes", Number(e.target.value))} className="border-2" />
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Status</Label>
+                </div>
+
+                {/* RIGHT — Settings */}
+                <div className="rounded-xl border-2 border-gray-200 bg-white p-5 space-y-5 lg:sticky lg:top-4">
+                    <h3 className="font-semibold text-sm uppercase tracking-wide text-gray-500">Post Settings</h3>
+
+                    <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold text-gray-600">Status</Label>
                         <Select value={form.status} onValueChange={v => set("status", v)}>
-                            <SelectTrigger className="border-2"><SelectValue /></SelectTrigger>
+                            <SelectTrigger className="border-2 h-9 text-sm"><SelectValue /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="draft">Draft</SelectItem>
                                 <SelectItem value="published">Published</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
-                    <div className="space-y-2">
-                        <Label>Tags <span className="text-gray-400 font-normal">(comma separated)</span></Label>
-                        <Input value={form.tags} onChange={e => set("tags", e.target.value)} className="border-2" placeholder="Kenya, Wooden House, Naivasha" />
+
+                    <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold text-gray-600">Category</Label>
+                        <Select value={form.category} onValueChange={v => set("category", v)}>
+                            <SelectTrigger className="border-2 h-9 text-sm"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                {CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
                     </div>
-                    <div className="space-y-2 sm:col-span-2">
-                        <Label>Excerpt * <span className="text-gray-400 font-normal">(shown in list view)</span></Label>
-                        <Textarea value={form.excerpt} onChange={e => set("excerpt", e.target.value)} rows={3} className="border-2 resize-none" placeholder="A short summary of the article — 1 to 2 sentences." />
+
+                    <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold text-gray-600">Tags <span className="font-normal text-gray-400">(comma separated)</span></Label>
+                        <Input
+                            value={form.tags}
+                            onChange={e => set("tags", e.target.value)}
+                            className="border-2 h-9 text-sm"
+                            placeholder="Kenya, Wooden House, Naivasha"
+                        />
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold text-gray-600">Author</Label>
+                        <Input value={form.author} onChange={e => set("author", e.target.value)} className="border-2 h-9 text-sm" />
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold text-gray-600">Read Time (min)</Label>
+                        <Input
+                            type="number" min={1} max={60}
+                            value={form.readTimeMinutes}
+                            onChange={e => set("readTimeMinutes", Number(e.target.value))}
+                            className="border-2 h-9 text-sm"
+                        />
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold text-gray-600">Slug</Label>
+                        <Input
+                            value={form.slug}
+                            onChange={e => set("slug", e.target.value)}
+                            className="border-2 h-9 text-sm font-mono"
+                            placeholder="auto-generated-from-title"
+                        />
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                        <input
+                            type="checkbox" id="featured-new"
+                            checked={form.featured}
+                            onChange={e => set("featured", e.target.checked)}
+                            className="w-4 h-4 accent-[#8B5E3C]"
+                        />
+                        <Label htmlFor="featured-new" className="cursor-pointer text-sm">
+                            Featured post
+                        </Label>
+                    </div>
+
+                    <div className="space-y-1.5 pt-1">
+                        <Label className="text-xs font-semibold text-gray-600">Cover Image</Label>
+                        <ImageUpload value={form.coverImage} onChange={url => set("coverImage", url)} />
                     </div>
                 </div>
 
-                <Separator />
-
-                <div className="flex items-center gap-3">
-                    <input type="checkbox" id="featured" checked={form.featured} onChange={e => set("featured", e.target.checked)} className="w-4 h-4 accent-[#8B5E3C]" />
-                    <Label htmlFor="featured" className="cursor-pointer">
-                        Featured <span className="text-gray-400 font-normal">(shown prominently on the blog page)</span>
-                    </Label>
-                </div>
-
-                <Separator />
-
-                <div className="space-y-2">
-                    <Label>Cover Image</Label>
-                    <ImageUpload value={form.coverImage} onChange={url => set("coverImage", url)} />
-                </div>
-
-                <Separator />
-
-                <div className="space-y-2">
-                    <Label>Content * <span className="text-gray-400 font-normal">(Markdown supported)</span></Label>
-                    <p className="text-xs text-gray-400">Use # for headings, **bold**, *italic*, {">"} for quotes, - for lists. Tables supported.</p>
-                    <Textarea
-                        value={form.content}
-                        onChange={e => set("content", e.target.value)}
-                        rows={24}
-                        className="border-2 resize-y font-mono text-sm"
-                        placeholder={"# Article Title\n\nWrite your article here...\n\n## A Section\n\nMore content..."}
-                    />
-                </div>
             </div>
         </div>
     )
