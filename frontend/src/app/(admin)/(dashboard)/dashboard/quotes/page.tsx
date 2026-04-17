@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FileText, DollarSign, CheckCircle, Clock, Plus } from "lucide-react";
+import { FileText, Banknote, CheckCircle, Clock, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import SearchBar from "@/components/common/SearchBar";
 import ExportMenu from "@/components/common/ExportMenu";
@@ -82,7 +82,7 @@ export default function QuotesPage() {
             <div className="rounded-lg border-2 border-[#8B5E3C] bg-gradient-to-br from-[#8B5E3C] to-[#5D3A1A] p-6 text-white">
                 <div className="flex items-center gap-3">
                     <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-white/20">
-                        <DollarSign size={24} />
+                        <Banknote size={24} />
                     </div>
                     <div>
                         <p className="text-sm text-white/80">Total Accepted Value</p>
