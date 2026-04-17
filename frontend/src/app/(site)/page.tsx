@@ -7,7 +7,8 @@ import Services from "@/components/sections/Services"
 import WhyChooseUs from "@/components/sections/Why"
 import Partners from "@/components/sections/Partners"
 import Projects from "@/components/sections/Project"
-import FAQ, { faqJsonLd } from "@/components/sections/FAQ"
+import FAQ from "@/components/sections/FAQ"
+import { faqJsonLd } from "@/lib/faq-data"
 
 export const metadata: Metadata = {
     title:       "Wooden Houses Kenya — Custom Wooden Houses, Cabins & Offices",

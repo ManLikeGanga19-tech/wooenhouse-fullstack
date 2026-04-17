@@ -244,9 +244,9 @@ public static class DatabaseSeeder
         {
             new()
             {
-                Title           = "Kutoka Msitu Hadi Mlangoni: Jinsi Tulivyojenga Makao ya Wafanyakazi wa Sirikoi Lodge",
+                Title           = "From the Forest to the Front Door: Building Staff Quarters for Sirikoi Lodge",
                 Slug            = "sirikoi-lodge-staff-quarters-laikipia",
-                Excerpt         = "Sirikoi Lodge iko moyoni mwa Laikipia, mahali ambapo fisi wanalia usiku na tembo wanakula asubuhi. Tuliambiwa: jenga kwa mbao. Hapa ndipo safari ilipoanza.",
+                Excerpt         = "Sirikoi Lodge sits at the heart of Laikipia, where hyenas call at night and elephants move through in the morning. They asked us to build with timber. Here is how that story went.",
                 Category        = "Partner Stories",
                 Author          = "Wooden Houses Kenya",
                 Tags            = "[\"Laikipia\",\"Eco Lodge\",\"Staff Quarters\",\"Sirikoi\"]",
@@ -255,33 +255,33 @@ public static class DatabaseSeeder
                 Status          = "published",
                 PublishedAt     = new DateTime(2025, 3, 10, 0, 0, 0, DateTimeKind.Utc),
                 Content         = """
-# Kutoka Msitu Hadi Mlangoni
+# From the Forest to the Front Door
 
-Sirikoi Lodge iko moyoni mwa Laikipia Plateau, mahali ambapo ardhi ni kame lakini maisha yanafurika. Ndege wa rangi nyingi, tembo wakitembea polepole asubuhi na fisi wakiimba usiku. Mazingira kama haya yanadai uangalifu — kila kitu kilichowekwa hapa lazima kiwe na maana.
+Sirikoi Lodge sits at the heart of the Laikipia Plateau, where the land is dry but full of life. Colourful birds, elephants moving slowly through the morning and the sounds of the bush at night. A place like this demands care. Everything placed here needs to belong here.
 
-Mwaka 2023, timu ya Sirikoi iliwasiliana nasi. Waliamua kupanua makao ya wafanyakazi wao na walitaka kitu kinachofanana na roho ya safari yenyewe — muundo wa mbao ulio imara, wenye joto na unaoheshimu mazingira yanayomzunguka.
+In 2023, the Sirikoi team came to us. They wanted to expand staff accommodation and they wanted it to feel like the spirit of the lodge itself — strong, warm timber that respected the landscape around it.
 
-## Changamoto za Kwanza
+## The First Challenge
 
-Laikipia si Nairobi. Barabara ni ngumu, nyakati za mvua zinazifanya kuwa mito. Tulibeba vifaa kutoka Naivasha, tukipanga safari za usiku ili kufikia tovuti mapema asubuhi. Timu yetu ilipiga kambi kwa wiki mbili mfululizo.
+Laikipia is not Nairobi. The roads are rough and turn into rivers when it rains. We transported materials from Naivasha, planning night drives to reach the site before sunrise. Our crew camped on site for two weeks straight.
 
-Lakini hilo ndilo zuri la kazi ya aina hii. Unajifunza kwamba mbao — kama binadamu — zinakuwa bora zaidi zinapopitia mazingira magumu.
+But that is what we value about this kind of work. You learn that timber, like people, becomes stronger when it goes through difficult conditions.
 
-## Muundo na Utamaduni
+## Design and Character
 
-Sirikoi Lodge ina style yake. Mbao ya rangi ya asili, vipande vya chuma visivyo vya kisasa sana, madirisha mapana yanayokaribisha upepo wa savanna. Sisi tuliheshimu lugha hiyo katika kila jengo tulilolisimamia.
+Sirikoi Lodge has its own visual language. Natural timber tones, simple metal details, wide windows that invite the savanna breeze in. We respected that language in every structure we built.
 
-Makao manne ya wafanyakazi yalipangwa kwa mstari, kila moja na ukumbi mdogo wa mbele — mahali pa kuketi usiku baada ya kazi, kuona nyota bila vikwazo.
+Four staff quarters were arranged in a gentle row, each with a small covered veranda at the front — a place to sit in the evening after a long day and look up at the stars without anything in the way.
 
-> "Wafanyakazi wetu walifurahi sana. Walisema makao mapya yanawafanya wahisi kama wageni wenyewe." — Meneja wa Sirikoi
+> "Our staff were so pleased. They said the new quarters made them feel like guests themselves." — Sirikoi Lodge Manager
 
-## Somo Tulilojifunza
+## What We Took Away
 
-Ujenzi wa mbao katika maeneo ya mbali hauhusu tu ujuzi wa kufundi. Unahitaji uvumilivu, ubunifu na heshima kwa mazingira. Tulitumia mbao zilizosindikwa vizuri ili kuzuia mchwa na mvua za Laikipia.
+Building with timber in remote locations is not just about craft skills. It demands patience, creativity and genuine respect for the environment. We used properly treated timber to resist termites and the heavy Laikipia rains.
 
-Leo makao hayo yanasimama imara, yakimheshimu mazingira ya Sirikoi na yenye urembo wa asili ambao huwezi kupata mahali pengine.
+Those quarters stand firm today, sitting comfortably within the Sirikoi landscape with a natural beauty that cannot be manufactured anywhere else.
 
-Kama uko na mradi katika eneo kama hili — tunafurahi kusikia kutoka kwako.
+If you have a project in a setting like this, we would love to hear from you.
 """,
             },
             new()
@@ -301,23 +301,23 @@ Kama uko na mradi katika eneo kama hili — tunafurahi kusikia kutoka kwako.
 
 There is a particular kind of quiet that settles over the Mara in the early morning. The grass is still silver with dew, a lion has just finished calling somewhere to the west and the light is the colour of warm honey. It is the kind of place that reminds you, quickly and firmly, that you are a guest.
 
-That is how we approached our work with the Masai Mara Wildlife Conservancies Association. As guests.
+That is how we approached our work with the Masai Mara Wildlife Conservancies Association.
 
 ## What They Needed
 
-The association coordinates work across multiple conservancies — anti-poaching, community education, ecological monitoring. Their field teams needed a proper base: somewhere to debrief, store equipment, sleep safely between patrols. But any structure had to sit lightly on the land.
+The association coordinates work across multiple conservancies — anti-poaching, community education, ecological monitoring. Their field teams needed a proper base: somewhere to debrief, store equipment and sleep safely between patrols. But any structure had to sit lightly on the land.
 
-Concrete is heavy. It sends a message. Mbao does not. Wood comes from the earth, it breathes with the seasons, and when its time comes it returns quietly.
+Concrete is heavy. It sends a message. Timber does not. Wood comes from the earth, it breathes with the seasons, and when its time comes it returns quietly.
 
 ## The Build
 
-We designed three connected structures — a main briefing room, a sleeping block and a covered outdoor kitchen. The main room has large shuttered windows on all four sides. During debriefs the team can open every shutter and still hear the savanna. It is not sealed away from the world it serves.
+We designed three connected structures: a main briefing room, a sleeping block and a covered outdoor kitchen. The main room has large shuttered windows on all four sides. During debriefs the team can open every shutter and still hear the savanna. It is not sealed away from the world it serves.
 
-We used treated hardwood throughout and roofed with mabati painted in a muted olive green. From fifty metres away the camp almost disappears into the landscape.
+We used treated hardwood throughout and roofed with corrugated iron painted in a muted olive green. From fifty metres away the camp almost disappears into the landscape.
 
-Total build time: nineteen days on site. We worked around the daily game movements, pausing whenever a herd of zebra or elephant came close — which happened more often than you might expect.
+Total build time was nineteen days on site. We worked around the daily game movements, pausing whenever a herd of zebra or elephant came close — which happened more often than you might expect.
 
-## Baada ya Mwaka Mmoja
+## A Year Later
 
 A year after completion, the lead ecologist sent us a message. He said the vervet monkeys had already started using the roof as a bridge between two fig trees. He did not sound annoyed. He sounded pleased.
 
@@ -328,9 +328,9 @@ If your conservation work needs a structure that respects the land it stands on,
             },
             new()
             {
-                Title           = "Mbao na Utafiti: Muundo wa Mbao kwa Mpala Research Center, Nanyuki",
+                Title           = "Timber and Research: Building a Field Office for Mpala Research Center, Nanyuki",
                 Slug            = "mpala-research-center-nanyuki-wooden-structure",
-                Excerpt         = "Mpala Research Center inafanya kazi ambayo inabadilisha jinsi tunavyoelewa Afrika. Waliituhitajika kujenga ofisi ya shamba yenye nguvu na utulivu. Tulifurahi sana.",
+                Excerpt         = "Mpala Research Center does work that changes how we understand Africa. They needed a field office that was strong, calm and completely honest about the materials it was made from.",
                 Category        = "Partner Stories",
                 Author          = "Wooden Houses Kenya",
                 Tags            = "[\"Nanyuki\",\"Research\",\"Mpala\",\"Field Office\"]",
@@ -339,99 +339,97 @@ If your conservation work needs a structure that respects the land it stands on,
                 Status          = "published",
                 PublishedAt     = new DateTime(2025, 1, 22, 0, 0, 0, DateTimeKind.Utc),
                 Content         = """
-# Mbao na Utafiti
+# Timber and Research
 
-Mpala Research Center iko pembezoni mwa Ewaso Nyiro, kaskazini mwa Kenya. Hapa watafiti kutoka mataifa mengi wanakuja kustudy — savanna, wanyama, hali ya hewa, maji ya ardhini. Ni mahali pa ujuzi mkubwa uliochanganywa na unyoofu wa asili.
+Mpala Research Center sits beside the Ewaso Nyiro river in northern Kenya. Researchers from many countries come here to study savanna ecology, wildlife behaviour, hydrology and climate patterns. It is a place of serious knowledge surrounded by raw, unapologetic nature.
 
-Tuliitwa kusaidia na ofisi mpya ya shamba. Waliitaka muundo ambao ungehifadhi karatasi na kompyuta wakati wa mvua, ushike baridi wakati wa jua kali na usisahaulishwe na mazingira yake.
+We were asked to help with a new field office. They wanted a structure that would protect papers and equipment during rain, stay cool in the highland heat and never feel out of place in its surroundings.
 
-## Muundo Wetu
+## Our Approach
 
-Tulichagua mbao nzito kwa kuta na sakafu, na paa la mabati lenye pengo la hewa chini yake ili kupunguza joto. Madirisha mapana upande wa kaskazini yanaleta mwanga lakini si joto la mchana.
+We chose heavy-section timber for the walls and floor, with an iron roof raised on a ventilation gap underneath to reduce heat gain. Wide north-facing windows bring in steady light without the afternoon glare.
 
-Ndani, tuliweka rafu za kuhifadhi vifaa vya utafiti, meza ndefu ya kazi ya pamoja na kona ya kompyuta na nguvu ya mara kwa mara kutoka kwa jenereta na mfumo wa solar.
+Inside, we fitted storage shelving for research equipment, a long communal work table and a computing corner with reliable power drawn from both generator and solar.
 
-Moja ya mambo tuliyojifunza na Mpala: watafiti wa kweli wanaangalia kila kitu. Walipima kila ubao, walikuwa na maswali kuhusu aina ya mbao, wakiuliza kama ingetoa kemikali yoyote inayoweza kuathiri masomo yao.
+One of the things we learned working with Mpala: proper scientists look at everything carefully. They measured every plank. They asked about timber species and treatment methods, wanting to know whether any chemicals could affect their field studies.
 
-Tulifurahi kujibu maswali yao kwa uaminifu. Tulitumia mbao iliyosindikwa kwa mafuta ya asili badala ya kemikali kali.
+We were glad to answer honestly. We used timber treated with natural oils rather than harsh chemical preservatives.
 
-## Matokeo
+## The Outcome
 
-Jengo lilikamilika kwa wakati uliokubalika na limesimama vizuri kwa miaka miwili sasa. Watafiti wanalifanya kazi kila siku.
+The building was completed on schedule and has been in daily use for over two years.
 
-> "It is the most comfortable field office I have worked in across all my African research sites." — Mtafiti mmoja (jina linahifadhiwa)
+> "It is the most comfortable field office I have worked in across all my African research sites." — Senior Researcher (name withheld)
 
-Hilo linasema kila kitu.
+That says everything.
 """,
             },
             new()
             {
-                Title           = "Bei ya Nyumba ya Mbao Kenya 2025: Mwongozo Kamili wa Gharama",
+                Title           = "How Much Does a Wooden House Cost in Kenya? A Straight Answer for 2025",
                 Slug            = "wooden-house-cost-kenya-2025",
-                Excerpt         = "Unauliza: nyumba ya mbao Kenya inagharimu kiasi gani? Jibu halipo katika nambari moja. Hapa tunakupa mwongozo wa kweli kulingana na uzoefu wetu wa miaka mingi.",
+                Excerpt         = "The question we hear every day: how much does a wooden house cost in Kenya? There is no single number. But here is a clear, honest guide based on our experience building across the country since 2016.",
                 Category        = "Insights",
                 Author          = "Wooden Houses Kenya",
-                Tags            = "[\"Bei\",\"Wooden House\",\"Kenya\",\"Cost Guide\",\"2025\"]",
+                Tags            = "[\"Cost Guide\",\"Wooden House\",\"Kenya\",\"Pricing\",\"2025\"]",
                 ReadTimeMinutes = 7,
                 Featured        = false,
                 Status          = "published",
                 PublishedAt     = new DateTime(2025, 4, 1, 0, 0, 0, DateTimeKind.Utc),
                 Content         = """
-# Bei ya Nyumba ya Mbao Kenya 2025
+# How Much Does a Wooden House Cost in Kenya?
 
-Swali hili tunajiulizwa kila siku: "Nyumba ya mbao inagharimu kiasi gani?" Na jibu halipo katika nambari moja rahisi — kama vile nyumba yenyewe haipo katika mpango mmoja rahisi.
+We get asked this every day. And every day we give the same honest answer: there is no single number, because there is no single house. But here is a clear breakdown based on real projects we have completed since 2016.
 
-Lakini tunajua unataka takwimu za kweli, si maneno ya pembejeo. Kwa hiyo hapa kuna maelezo ya wazi, kulingana na kazi tuliyoifanya kwa miaka tangu 2016.
+## What Drives the Cost
 
-## Mambo Yanayoathiri Bei
+Before the numbers, understand what actually moves the price:
 
-Kabla ya nambari, fahamu mambo haya:
+**Size** — As the building gets larger, the cost per square metre tends to come down slightly. Foundation work, roofing and connection costs spread across more floor area.
 
-**Ukubwa wa jengo** — Kadri jengo linavyokuwa kubwa, ndivyo bei inavyopanda, lakini si kwa mfumo wa moja kwa moja. Gharama za msingi (kuchimba, sakafu) zinagawanywa kwa mita nyingi zaidi.
+**Timber species** — Cypress is more affordable than mvule. Mukau is the most expensive but the most durable. Imported timber adds 30 to 50 percent to the material cost.
 
-**Aina ya mbao** — Cypress ni nafuu zaidi kuliko mvule. Mukau ni ghali zaidi ya zote lakini inadumu vizuri sana. Mbao ya kuagiza kutoka nje inaongeza gharama kwa asilimia thelathini hadi hamsini.
+**Location** — Nairobi and Naivasha are roughly similar in access. Remote sites like Laikipia, the coast or Marsabit add transport costs that can be significant.
 
-**Eneo la ujenzi** — Nairobi na Naivasha ni karibu sawa. Lakini ukienda Laikipia, Marsabit au pwani, gharama za usafirishaji zinaongezeka.
+**Interior finishes** — Wooden floors, plumbing, electrical, kitchen fittings and bathroom tiling. These can add 60 to 80 percent on top of the shell cost.
 
-**Vifaa vya ndani** — Sakafu ya mbao, mabombo, umeme, choo, jiko. Hizi zinaweza kuongeza gharama kwa asilimia sitini hadi themanini.
+## Cost Guide by Build Type
 
-## Mwongozo wa Bei kwa Mita za Mraba
-
-| Aina ya Ujenzi | Bei kwa m² (KES) |
+| Build Type | Cost per m² (KES) |
 |---|---|
-| Cabin ndogo (msingi) | 18,000 – 25,000 |
-| Nyumba ya kawaida | 22,000 – 35,000 |
-| Nyumba ya kifahari | 35,000 – 55,000+ |
-| Ofisi ya mbao | 20,000 – 30,000 |
+| Basic cabin or starter structure | 18,000 – 25,000 |
+| Standard family home | 22,000 – 35,000 |
+| High-finish residential | 35,000 – 55,000+ |
+| Garden office or studio | 20,000 – 30,000 |
 
-*Nambari hizi ni wastani wa 2025. Zinahusisha kazi, mbao na vifaa vya msingi.*
+*These are 2025 averages. They include labour, timber and basic materials.*
 
-## Mfano wa Kweli
+## A Real Example
 
-Nyumba ya chumba kimoja cha kulala (bedroom moja), jiko na choo — kiasi cha mita 40 za mraba — inaweza kujengwa kwa:
+A one-bedroom home with a small kitchen and bathroom — roughly 40 square metres — currently costs:
 
-KES 900,000 – 1,400,000 kulingana na ubora wa mbao na kiwango cha ufundi unaohitajika.
+**KES 900,000 to KES 1,400,000** depending on timber quality and finish level.
 
-Hii ni bei nzuri ikilinganishwa na ujenzi wa mawe ambao mara nyingi unaanza KES 1,500,000 kwa ukubwa huo huo.
+For comparison, a brick and mortar structure of the same size typically starts at KES 1,500,000 and takes much longer to complete.
 
-## Kwa Nini Mbao ni Chaguo Zuri Kiuchumi?
+## Why Timber Makes Financial Sense
 
-Kwanza, ujenzi wa mbao ni wa haraka. Nyumba nyingi tunazozaliana zinaisha kwa wiki nne hadi tisa — si miezi kama kawaida ya mawe. Hii inamaanisha unaingia haraka na unalipa pesa kidogo kwa malazi ya muda.
+First, speed. Most of our projects finish in 4 to 9 weeks. That means you move in sooner and pay less in temporary accommodation during construction.
 
-Pili, matengenezo ya mbao yanaweza kuwa ya bei nafuu ikiwa yanafanywa kwa wakati. Rangi mpya kila miaka mitano, kurekebisha ubao mmoja badala ya kuvunja kuta zote.
+Second, maintenance costs are low when the building is done right. A coat of exterior treatment every 5 to 7 years and prompt repair of any minor issues will keep a well-built timber structure standing for 40 to 60 years.
 
-## Hatua Inayofuata
+## Get a Real Quote
 
-Kama una kipande cha ardhi na wazo la nyumba, tunatoa tathmini ya awali bila malipo. Utuambie ukubwa, eneo na bajeti yako na tutakuandalia makadirio ya kweli ndani ya siku mbili za kazi.
+If you have land and a concept, we offer a no-cost initial assessment. Tell us the size, location and your budget and we will come back with an honest estimate within two working days.
 
-Piga simu: +254 789 104 438 au utumie fomu ya mawasiliano kwenye tovuti hii.
+Call us: +254 789 104 438 or use the contact form on this site.
 """,
             },
             new()
             {
-                Title           = "Kwa Nini Wakenya Wanachagua Nyumba za Mbao: Ukweli Kutoka Ardhini",
+                Title           = "Why More Kenyans Are Choosing Wooden Homes: What We See From the Ground",
                 Slug            = "why-kenyans-choosing-wooden-homes",
-                Excerpt         = "Utambuzi wa nyumba za mbao unakua haraka Kenya. Si kwa sababu ya mtindo tu — kuna sababu za msingi za kiuchumi, kiafya na kimazingira ambazo Wakenya wengi sasa wanazielewa.",
+                Excerpt         = "Wooden homes are growing fast in Kenya. Not because of trends, but because of real reasons: time, comfort, cost and a connection to the land. Here is what we see after building across the country since 2016.",
                 Category        = "Insights",
                 Author          = "Wooden Houses Kenya",
                 Tags            = "[\"Wooden Homes\",\"Kenya\",\"Sustainable\",\"Housing Trends\"]",
@@ -440,39 +438,39 @@ Piga simu: +254 789 104 438 au utumie fomu ya mawasiliano kwenye tovuti hii.
                 Status          = "published",
                 PublishedAt     = new DateTime(2025, 3, 28, 0, 0, 0, DateTimeKind.Utc),
                 Content         = """
-# Kwa Nini Wakenya Wanachagua Nyumba za Mbao
+# Why More Kenyans Are Choosing Wooden Homes
 
-Miaka kumi iliyopita, ukisema unataka kujenga nyumba ya mbao, watu wengi wangekuona kwa macho ya kushangaza. "Mbao? Kama ile ya babu?" Sasa mambo yamebadilika.
+Ten years ago, if you said you wanted to build a wooden house, people would raise an eyebrow. "Timber? Like the old days?" Today that reaction has almost disappeared. Something real has changed.
 
-Tunashuhudia mabadiliko makubwa katika jinsi Wakenya wanavyofikiri kuhusu makao. Na mbao iko katikati ya mabadiliko haya.
+We see it in the volume of enquiries we receive, in the conversations at building sites, and in the way our completed homes are talked about by the people who live in them.
 
-## Sababu ya Kwanza: Wakati
+## Reason One: Speed
 
-Ujenzi wa mawe Kenya unachukua muda. Utafiti wetu unaonyesha kwamba nyumba ya wastani ya mawe inachukua miezi saba hadi kumi na moja kuisha tangu msingi. Wakati huo, unalipa panga mahali pengine, unalipa wafanyakazi wanaokaa bila kazi wakati saruji inakauka, unangoja saruji ya nguzo iwe ngumu.
+Brick and mortar construction in Kenya takes time. A standard family home can take 7 to 11 months from the first brick to handover. During that whole period, you are paying rent somewhere else, managing a workforce that has slow periods when concrete cures and waiting on materials that take weeks to arrive.
 
-Nyumba yetu ya mbao ya ukubwa huo huo inachukua wiki sita hadi tisa. Hii si kauli tu — ni kumbukumbu ya miradi yetu tangu 2016.
+Our timber builds typically finish in 4 to 9 weeks for the same size of home. That is not a sales pitch — it is what our project records show going back to 2016.
 
-## Sababu ya Pili: Baridi na Joto
+## Reason Two: Natural Temperature Control
 
-Mbao ni mdudu wa asili wa joto. Inahifadhi baridi asubuhi na inaupunguza joto la mchana. Watu wanaoishi katika nyumba za mbao tunazozaliana — hasa Nanyuki, Naivasha na Laikipia — wanasema hawahitaji AC wala hita za umeme mara nyingi.
+Timber is one of the best natural insulators available. It holds the cool of the morning and moderates the afternoon heat. People living in our homes in Nanyuki, Naivasha and Laikipia consistently tell us they rarely need electric heating or air conditioning.
 
-Hii ni jambo la kweli la sayansi: mbao ina uwezo wa kuhifadhi joto mara tano zaidi ya mawe au tofali.
+This is established science. Timber has roughly five times the thermal mass of brick or concrete block for the same wall thickness.
 
-## Sababu ya Tatu: Mazingira
+## Reason Three: Environmental Responsibility
 
-Kenya ina mkakati wa kupanda miti mamilioni mingi. Sekta ya mbao inayojenga vizuri — kwa mbao kutoka misitu inayosimamiwa — inakubaliana na mkakati huu, si kupingana nao.
+Kenya has a national tree-planting programme. A timber construction sector that sources from well-managed forests works alongside that goal rather than against it.
 
-Tunatumia mbao kutoka kwa wasambazaji wanaofuata sheria za msitu. Na mbao zilizokuwa zikioza zinaweza kusindikwa na kutumika tena badala ya kutupwa.
+We source from suppliers who follow forestry regulations. And timber offcuts can be repurposed or composted rather than sent to landfill.
 
-## Sababu ya Nne: Uzuri wa Asili
+## Reason Four: A Different Kind of Beauty
 
-Hii ni ya mwisho katika orodha lakini si ya mwisho kwa umuhimu. Kuna kitu katika nyumba ya mbao ambacho kinagusa moyo. Harufu ya mbao mpya. Rangi ya asili ya kuni. Sauti ya mvua juu ya paa la mbao.
+This one is harder to measure but impossible to ignore. There is something about a timber home that touches people. The smell of fresh wood. The warmth of natural grain. The sound of rain on a timber-framed roof.
 
-Watu wanaotembelea nyumba tunazozaliana mara nyingi wanasema jambo moja: "Inajisikia kama nyumbani." Na hilo ndilo tunalolenga kila wakati.
+When people visit completed homes, they almost always say the same thing: it feels like home. That is what we are trying to build every time.
 
 ---
 
-Kama uko tayari kuanza mazungumzo kuhusu nyumba yako ya mbao, anza hapa. Hatutakuumiza na nambari za kuogopesha — tutasikiliza kwanza, tukuambie ukweli, kisha tufanye kazi pamoja.
+If you are ready to start thinking about your own wooden home, start a conversation with us. We will not overwhelm you with numbers before we understand what you need. We listen first.
 """,
             },
         };
