@@ -11,7 +11,7 @@ import {
     Settings,
     FolderOpen,
     Wrench,
-    Home as HomeIcon,
+    BookOpen,
     LogOut
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +32,7 @@ const navigation = [
     { name: "Quotes",    href: "/dashboard/quotes",     icon: FileText        },
     { name: "Projects",  href: "/dashboard/projects",   icon: FolderOpen      },
     { name: "Services",  href: "/dashboard/services",   icon: Wrench          },
+    { name: "Blog",      href: "/dashboard/blog",       icon: BookOpen        },
     { name: "Settings",  href: "/dashboard/settings",   icon: Settings        },
 ];
 

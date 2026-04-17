@@ -178,6 +178,7 @@ export default function Navbar() {
                             { href: "/about", label: "About" },
                             { href: "/services", label: "Services" },
                             { href: "/projects", label: "Projects" },
+                            { href: "/blog", label: "Blog" },
                             { href: "/contact", label: "Contact Us" },
                         ].map((item) => (
                             <Link
@@ -221,6 +222,7 @@ export default function Navbar() {
                                     { href: "/about", label: "About" },
                                     { href: "/services", label: "Services" },
                                     { href: "/projects", label: "Projects" },
+                                    { href: "/blog", label: "Blog" },
                                     { href: "/contact", label: "Contact Us" },
                                 ].map((item) => (
                                     <SheetClose asChild key={item.href}>

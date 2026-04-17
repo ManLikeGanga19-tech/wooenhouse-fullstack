@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "aos/dist/aos.css";
+@plugin "@tailwindcss/typography";
 
 /* ── AOS safety net ──────────────────────────────────────────────────────────
  * AOS CSS hides [data-aos] elements with opacity:0 unconditionally.

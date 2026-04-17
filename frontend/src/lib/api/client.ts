@@ -156,6 +156,27 @@ export const api = {
         });
       },
     },
+
+    blog: {
+      getAll:   () =>
+        apiClient.get<BlogPost[]>("/api/admin/blog"),
+      getById:  (id: string) =>
+        apiClient.get<BlogPost>(`/api/admin/blog/${id}`),
+      create:   (data: Partial<BlogPost>) =>
+        apiClient.post<BlogPost>("/api/admin/blog", data),
+      update:   (id: string, data: Partial<BlogPost>) =>
+        apiClient.put<BlogPost>(`/api/admin/blog/${id}`, data),
+      delete:   (id: string) =>
+        apiClient.delete(`/api/admin/blog/${id}`),
+    },
+  },
+
+  // Public blog
+  blog: {
+    getAll:    (params?: { category?: string; featured?: boolean; page?: number; limit?: number }) =>
+      apiClient.get<BlogListResponse>("/api/blog", { params }),
+    getBySlug: (slug: string) =>
+      apiClient.get<BlogPost>(`/api/blog/${slug}`),
   },
 };
 
@@ -323,4 +344,29 @@ export interface AdminQuotesParams {
   status?:   string;
   page?:     number;
   pageSize?: number;
+}
+
+export interface BlogPost {
+  id:              string;
+  title:           string;
+  slug:            string;
+  excerpt:         string;
+  content?:        string;
+  coverImage?:     string;
+  category:        string;
+  author:          string;
+  tags?:           string; // JSON array string
+  readTimeMinutes: number;
+  featured:        boolean;
+  status:          string;
+  publishedAt?:    string;
+  createdAt:       string;
+  updatedAt:       string;
+}
+
+export interface BlogListResponse {
+  total: number;
+  page:  number;
+  limit: number;
+  posts: Omit<BlogPost, "content">[];
 }

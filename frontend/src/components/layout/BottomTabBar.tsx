@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import {
     LayoutDashboard, Users, Mail, FileText,
-    MoreHorizontal, FolderOpen, Wrench, Settings, LogOut,
+    MoreHorizontal, FolderOpen, Wrench, Settings, LogOut, BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -23,6 +23,7 @@ const PRIMARY_TABS = [
 const MORE_ITEMS = [
     { name: "Projects", href: "/dashboard/projects", icon: FolderOpen },
     { name: "Services", href: "/dashboard/services", icon: Wrench     },
+    { name: "Blog",     href: "/dashboard/blog",     icon: BookOpen   },
     { name: "Settings", href: "/dashboard/settings", icon: Settings   },
 ];
 

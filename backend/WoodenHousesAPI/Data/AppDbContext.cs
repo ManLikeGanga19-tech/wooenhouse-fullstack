@@ -13,6 +13,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Project>               Projects               => Set<Project>();
     public DbSet<Service>               Services               => Set<Service>();
     public DbSet<SiteSetting>           SiteSettings           => Set<SiteSetting>();
+    public DbSet<BlogPost>              BlogPosts              => Set<BlogPost>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -97,6 +98,18 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasIndex(u => u.Email).IsUnique();
             e.Property(u => u.Role).HasDefaultValue("admin");
             e.Property(u => u.CreatedAt).HasDefaultValueSql("NOW()");
+        });
+
+        // BlogPost
+        modelBuilder.Entity<BlogPost>(e =>
+        {
+            e.HasKey(b => b.Id);
+            e.HasIndex(b => b.Slug).IsUnique();
+            e.Property(b => b.Status).HasDefaultValue("draft");
+            e.Property(b => b.Featured).HasDefaultValue(false);
+            e.Property(b => b.ReadTimeMinutes).HasDefaultValue(5);
+            e.Property(b => b.CreatedAt).HasDefaultValueSql("NOW()");
+            e.Property(b => b.UpdatedAt).HasDefaultValueSql("NOW()");
         });
     }
 }
