@@ -41,13 +41,14 @@ public class CloudinaryService(IConfiguration config) : IFileService
 
         await using var stream = file.OpenReadStream();
 
+        // Note: Transformation is intentionally omitted from upload params —
+        // including it in the signed payload causes SDK/server signature mismatches
+        // with some SDK versions. q_auto/f_auto can be applied at serve time via URL.
         var result = await cloudinary.UploadAsync(new ImageUploadParams
         {
-            File           = new FileDescription(file.FileName, stream),
-            PublicId       = publicId,
-            Overwrite      = false,
-            // Auto quality + format (Cloudinary converts to WebP/AVIF automatically)
-            Transformation = new Transformation().Quality("auto").FetchFormat("auto"),
+            File      = new FileDescription(file.FileName, stream),
+            PublicId  = publicId,
+            Overwrite = false,
         });
 
         if (result.Error is not null)
