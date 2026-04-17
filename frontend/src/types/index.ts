@@ -16,6 +16,8 @@ export interface Contact {
     status: 'new' | 'contacted' | 'quoted' | 'converted' | 'closed';
     priority?: 'low' | 'normal' | 'high' | 'urgent';
     notes?: string;
+    isSpam?: boolean;
+    spamReason?: string;
     createdAt: Date;
     updatedAt?: Date;
     contactedAt?: Date;
@@ -38,6 +40,8 @@ export interface NewsletterSubscriber {
     name?: string;
     status: 'active' | 'unsubscribed';
     source: 'website' | 'contact-form' | 'manual';
+    isSpam?: boolean;
+    spamReason?: string;
     subscribedAt: Date;
     unsubscribedAt?: Date;
 }

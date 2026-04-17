@@ -20,6 +20,12 @@ jest.mock("next/image", () => ({
 
 jest.mock("aos", () => ({ init: jest.fn(), refresh: jest.fn() }));
 
+// Mock reCAPTCHA — no provider in unit tests, executeRecaptcha returns a fake token
+jest.mock("react-google-recaptcha-v3", () => ({
+  useGoogleReCaptcha:       () => ({ executeRecaptcha: jest.fn().mockResolvedValue("test-token") }),
+  GoogleReCaptchaProvider:  ({ children }: { children: React.ReactNode }) => children,
+}));
+
 // Mock Sonner — component calls toast.success / toast.error
 const mockToastSuccess = jest.fn();
 const mockToastError   = jest.fn();
