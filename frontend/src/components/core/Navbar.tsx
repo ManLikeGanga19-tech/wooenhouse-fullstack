@@ -107,7 +107,7 @@ export default function Navbar() {
                         <Link href="https://x.com/wooden_kenya/" className="hover:scale-110 transition-all">
                             <XBrandIcon size={18} color="#8B5E3C" />
                         </Link>
-                        <Link href="#" className="hover:scale-110 transition-all">
+                        <Link href="https://www.youtube.com/@WoodenHouseKenya" target="_blank" rel="noopener noreferrer" className="hover:scale-110 transition-all">
                             <Youtube size={18} style={{ color: "#8B5E3C" }} />
                         </Link>
                     </div>

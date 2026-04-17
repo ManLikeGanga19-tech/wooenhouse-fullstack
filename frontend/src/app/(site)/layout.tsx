@@ -68,6 +68,8 @@ const localBusinessJsonLd = {
     "https://www.facebook.com/mitchiehousing/",
     "https://www.instagram.com/woodenhouseskenya/",
     "https://x.com/wooden_kenya/",
+    "https://www.youtube.com/@WoodenHouseKenya",
+    "https://wa.me/254789104438",
   ],
   hasOfferCatalog: {
     "@type": "OfferCatalog",
