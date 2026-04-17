@@ -27,8 +27,15 @@ export default function AdminBlogPage() {
             .finally(() => setLoading(false))
     }, [])
 
-    const handleDelete = async (id: string, title: string) => {
-        if (!confirm(`Delete "${title}"? This cannot be undone.`)) return
+    const handleDelete = (id: string, title: string) => {
+        toast(`Delete "${title}"?`, {
+            description: "This cannot be undone.",
+            action:  { label: "Delete", onClick: () => confirmDelete(id) },
+            cancel:  { label: "Cancel", onClick: () => {} },
+        })
+    }
+
+    const confirmDelete = async (id: string) => {
         try {
             await api.admin.blog.delete(id)
             setPosts(prev => prev.filter(p => p.id !== id))
