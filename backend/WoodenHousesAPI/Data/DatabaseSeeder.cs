@@ -234,13 +234,8 @@ public static class DatabaseSeeder
     // ─── Blog Posts ───────────────────────────────────────────────────────────
     private static async Task SeedBlogPostsAsync(AppDbContext db, ILogger logger)
     {
-        if (db.BlogPosts.Any())
-        {
-            logger.LogInformation("Blog posts already exist — skipping seed.");
-            return;
-        }
-
-        var posts = new List<BlogPost>
+        // Upsert by slug so content updates are applied on redeploy
+        var seedPosts = new List<BlogPost>
         {
             new()
             {
@@ -475,8 +470,32 @@ If you are ready to start thinking about your own wooden home, start a conversat
             },
         };
 
-        db.BlogPosts.AddRange(posts);
+        int added = 0, updated = 0;
+        foreach (var seed in seedPosts)
+        {
+            var existing = db.BlogPosts.FirstOrDefault(b => b.Slug == seed.Slug);
+            if (existing is null)
+            {
+                db.BlogPosts.Add(seed);
+                added++;
+            }
+            else
+            {
+                existing.Title           = seed.Title;
+                existing.Excerpt         = seed.Excerpt;
+                existing.Content         = seed.Content;
+                existing.Category        = seed.Category;
+                existing.Tags            = seed.Tags;
+                existing.ReadTimeMinutes = seed.ReadTimeMinutes;
+                existing.Featured        = seed.Featured;
+                existing.Status          = seed.Status;
+                existing.PublishedAt     = seed.PublishedAt;
+                existing.UpdatedAt       = DateTime.UtcNow;
+                updated++;
+            }
+        }
+
         await db.SaveChangesAsync();
-        logger.LogInformation("Seeded {Count} blog posts.", posts.Count);
+        logger.LogInformation("Blog posts seeded: {Added} added, {Updated} updated.", added, updated);
     }
 }
