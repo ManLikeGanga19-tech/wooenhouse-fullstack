@@ -41,14 +41,15 @@ public class CloudinaryService(IConfiguration config) : IFileService
 
         await using var stream = file.OpenReadStream();
 
-        // Note: Transformation is intentionally omitted from upload params —
-        // including it in the signed payload causes SDK/server signature mismatches
-        // with some SDK versions. q_auto/f_auto can be applied at serve time via URL.
+        // Note: Transformation and Overwrite=false are intentionally omitted.
+        // SDK v1.28.0 includes boolean-false values in the string-to-sign, which
+        // violates Cloudinary's spec ("false values must not be included") and
+        // causes Invalid Signature errors. GUIDs guarantee uniqueness so Overwrite
+        // is not needed. q_auto/f_auto can be applied at serve time via URL.
         var result = await cloudinary.UploadAsync(new ImageUploadParams
         {
-            File      = new FileDescription(file.FileName, stream),
-            PublicId  = publicId,
-            Overwrite = false,
+            File     = new FileDescription(file.FileName, stream),
+            PublicId = publicId,
         });
 
         if (result.Error is not null)
