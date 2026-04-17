@@ -187,3 +187,10 @@ body.nav-open [id^="tawk-"] iframe,
 body.nav-open .tawk-min-container {
   z-index: 10 !important;
 }
+
+/* Move Tawk.to floating button to the left side */
+#tawk-bubble-container,
+.tawk-min-container {
+  left: 20px !important;
+  right: auto !important;
+}
