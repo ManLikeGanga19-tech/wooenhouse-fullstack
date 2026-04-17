@@ -148,8 +148,14 @@ try
     // ─── Application Services ─────────────────────────────────────────────────
     builder.Services.AddScoped<IAuthService, AuthService>();
     builder.Services.AddScoped<IEmailService, EmailService>();
-    builder.Services.AddScoped<IFileService, FileService>();
     builder.Services.AddHttpClient<IRecaptchaService, RecaptchaService>();
+
+    // Use Cloudinary in production (Render has an ephemeral filesystem).
+    // Fall back to local disk storage when Cloudinary is not configured (dev).
+    if (!string.IsNullOrWhiteSpace(builder.Configuration["Cloudinary:CloudName"]))
+        builder.Services.AddScoped<IFileService, CloudinaryService>();
+    else
+        builder.Services.AddScoped<IFileService, FileService>();
 
     // ─── Controllers ─────────────────────────────────────────────────────────
     builder.Services.AddControllers(options =>
