@@ -66,7 +66,7 @@ export const api = {
   },
 
   newsletter: {
-    subscribe:   (data: { email: string; name?: string; source?: string }) =>
+    subscribe:   (data: { email: string; name?: string; source?: string; hp?: string; loadedAt?: number; recaptchaToken?: string }) =>
       apiClient.post<{ message: string }>("/api/newsletter/subscribe", data),
     unsubscribe: (data: { email: string }) =>
       apiClient.post<{ message: string }>("/api/newsletter/unsubscribe", data),
@@ -117,9 +117,11 @@ export const api = {
     },
 
     newsletter: {
-      getAll: (params?: { status?: string }) =>
+      getAll:    (params?: { status?: string; showSpam?: boolean }) =>
         apiClient.get<NewsletterSubscriber[]>("/api/admin/newsletter", { params }),
-      delete: (id: string) =>
+      markSpam:  (id: string, isSpam: boolean) =>
+        apiClient.patch<NewsletterSubscriber>(`/api/admin/newsletter/${id}`, { isSpam }),
+      delete:    (id: string) =>
         apiClient.delete(`/api/admin/newsletter/${id}`),
     },
 
@@ -167,35 +169,41 @@ export interface AuthUser {
 }
 
 export interface ContactFormData {
-  name:        string;
-  email:       string;
-  phone?:      string;
-  serviceType?: string;
-  location?:   string;
-  budget?:     string;
-  timeline?:   string;
-  message?:    string;
-  newsletter:  boolean;
+  name:           string;
+  email:          string;
+  phone?:         string;
+  serviceType?:   string;
+  location?:      string;
+  budget?:        string;
+  timeline?:      string;
+  message?:       string;
+  newsletter:     boolean;
+  // Spam detection fields (evaluated server-side, never stored)
+  hp?:            string;
+  loadedAt?:      number;
+  recaptchaToken?: string;
 }
 
 export interface Contact {
-  id:          string;
-  name:        string;
-  email:       string;
-  phone?:      string;
+  id:           string;
+  name:         string;
+  email:        string;
+  phone?:       string;
   serviceType?: string;
-  location?:   string;
-  budget?:     string;
-  timeline?:   string;
-  message?:    string;
-  newsletter:  boolean;
-  status:      string;
-  priority:    string;
-  notes?:      string;
-  createdAt:   string;
-  updatedAt:   string;
+  location?:    string;
+  budget?:      string;
+  timeline?:    string;
+  message?:     string;
+  newsletter:   boolean;
+  status:       string;
+  priority:     string;
+  notes?:       string;
+  isSpam:       boolean;
+  spamReason?:  string;
+  createdAt:    string;
+  updatedAt:    string;
   contactedAt?: string;
-  quotes?:     Quote[];
+  quotes?:      Quote[];
 }
 
 export interface Quote {
@@ -240,6 +248,8 @@ export interface NewsletterSubscriber {
   name?:           string;
   status:          string;
   source?:         string;
+  isSpam:          boolean;
+  spamReason?:     string;
   subscribedAt:    string;
   unsubscribedAt?: string;
 }
@@ -304,6 +314,7 @@ export interface AdminContactsParams {
   status?:   string;
   priority?: string;
   search?:   string;
+  showSpam?: boolean;
   page?:     number;
   pageSize?: number;
 }

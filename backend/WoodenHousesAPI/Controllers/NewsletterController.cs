@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using WoodenHousesAPI.Data;
 using WoodenHousesAPI.DTOs.Newsletter;
 using WoodenHousesAPI.Models;
+using WoodenHousesAPI.Services;
 
 namespace WoodenHousesAPI.Controllers;
 
@@ -11,7 +12,7 @@ namespace WoodenHousesAPI.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/newsletter")]
-public class NewsletterController(AppDbContext db) : ControllerBase
+public class NewsletterController(AppDbContext db, IRecaptchaService recaptcha) : ControllerBase
 {
     [HttpPost("subscribe")]
     public async Task<IActionResult> Subscribe([FromBody] SubscribeRequest request)
@@ -30,11 +31,26 @@ public class NewsletterController(AppDbContext db) : ControllerBase
             return Ok(new { message = "Welcome back! You have been re-subscribed." });
         }
 
+        var (isSpam, spamReason) = SpamDetector.Check(request.Hp, request.LoadedAt);
+
+        // reCAPTCHA v3 — only check if honeypot/timing passed
+        if (!isSpam)
+        {
+            var (rcOk, _) = await recaptcha.VerifyAsync(request.RecaptchaToken);
+            if (!rcOk)
+            {
+                isSpam     = true;
+                spamReason = "recaptcha";
+            }
+        }
+
         db.NewsletterSubscribers.Add(new NewsletterSubscriber
         {
-            Email  = request.Email,
-            Name   = request.Name,
-            Source = request.Source ?? "footer",
+            Email      = request.Email,
+            Name       = request.Name,
+            Source     = request.Source ?? "footer",
+            IsSpam     = isSpam,
+            SpamReason = spamReason,
         });
 
         await db.SaveChangesAsync();

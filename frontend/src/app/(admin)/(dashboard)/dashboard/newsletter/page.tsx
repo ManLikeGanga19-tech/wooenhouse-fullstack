@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { Mail, Users, UserCheck, UserX } from "lucide-react";
+import { Mail, Users, UserCheck, UserX, ShieldAlert } from "lucide-react";
 import SearchBar from "@/components/common/SearchBar";
 import ExportMenu from "@/components/common/ExportMenu";
 import SubscribersTable from "@/components/newsletter/SubscribersTable";
@@ -18,16 +18,35 @@ export default function NewsletterPage() {
     const [searchQuery,   setSearchQuery]   = useState("");
     const [statusFilter,  setStatusFilter]  = useState("all");
     const [sourceFilter,  setSourceFilter]  = useState("all");
+    const [showSpam,      setShowSpam]      = useState(false);
 
-    const load = () => {
+    const load = (spam = showSpam) => {
         setLoading(true);
-        api.admin.newsletter.getAll()
+        api.admin.newsletter.getAll({ showSpam: spam })
             .then(r => setSubscribers(r.data))
             .catch(() => toast.error("Failed to load subscribers"))
             .finally(() => setLoading(false));
     };
 
-    useEffect(() => { load(); }, []);
+    useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const handleSpamToggle = (spam: boolean) => {
+        setShowSpam(spam);
+        setSearchQuery("");
+        setStatusFilter("all");
+        setSourceFilter("all");
+        load(spam);
+    };
+
+    const handleMarkSpam = async (id: string, isSpam: boolean) => {
+        try {
+            await api.admin.newsletter.markSpam(id, isSpam);
+            toast.success(isSpam ? "Marked as spam" : "Marked as not spam");
+            load(showSpam);
+        } catch {
+            toast.error("Failed to update spam status");
+        }
+    };
 
     const filtered = useMemo(() => {
         return subscribers.filter(s => {
@@ -40,8 +59,8 @@ export default function NewsletterPage() {
     }, [subscribers, searchQuery, statusFilter, sourceFilter]);
 
     const hasActiveFilters = statusFilter !== "all" || sourceFilter !== "all";
-    const active      = filtered.filter(s => s.status === "active").length;
-    const unsub       = filtered.filter(s => s.status === "unsubscribed").length;
+    const active = filtered.filter(s => s.status === "active").length;
+    const unsub  = filtered.filter(s => s.status === "unsubscribed").length;
 
     return (
         <div className="space-y-6">
@@ -50,7 +69,18 @@ export default function NewsletterPage() {
                     <h1 className="text-3xl font-bold" style={{ color: "#8B5E3C" }}>Newsletter Subscribers</h1>
                     <p className="text-gray-600 mt-1">Manage newsletter subscribers and mailing list</p>
                 </div>
-                <ExportMenu onExportCSV={() => exportNewsletterToCSV(filtered as never)} disabled={filtered.length === 0} />
+                <div className="flex items-center gap-3">
+                    <Button
+                        variant={showSpam ? "destructive" : "outline"}
+                        size="sm"
+                        onClick={() => handleSpamToggle(!showSpam)}
+                        className="border-2"
+                    >
+                        <ShieldAlert size={14} className="mr-1.5" />
+                        {showSpam ? "Hide Spam" : "Show Spam"}
+                    </Button>
+                    <ExportMenu onExportCSV={() => exportNewsletterToCSV(filtered as never)} disabled={filtered.length === 0} />
+                </div>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -72,43 +102,52 @@ export default function NewsletterPage() {
                 </div>
             </div>
 
+            {showSpam && (
+                <div className="flex items-center gap-2 rounded-lg border-2 border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    <ShieldAlert size={16} />
+                    Showing spam subscribers. These were flagged automatically — review and mark as &quot;Not Spam&quot; if incorrect.
+                </div>
+            )}
+
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <SearchBar value={searchQuery} onChange={setSearchQuery} placeholder="Search by email or name..." className="sm:w-80" />
-                <div className="flex flex-wrap items-center gap-3">
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
-                        <SelectTrigger className="w-40 border-2"><SelectValue placeholder="Status" /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All Status</SelectItem>
-                            <SelectItem value="active">Active</SelectItem>
-                            <SelectItem value="unsubscribed">Unsubscribed</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <Select value={sourceFilter} onValueChange={setSourceFilter}>
-                        <SelectTrigger className="w-44 border-2"><SelectValue placeholder="Source" /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All Sources</SelectItem>
-                            <SelectItem value="footer">Footer</SelectItem>
-                            <SelectItem value="contact-form">Contact Form</SelectItem>
-                            <SelectItem value="manual">Manual</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    {hasActiveFilters && (
-                        <Button variant="outline" size="sm" onClick={() => { setStatusFilter("all"); setSourceFilter("all"); }} className="border-2">
-                            <X size={14} className="mr-1" /> Clear
-                        </Button>
-                    )}
-                </div>
+                {!showSpam && (
+                    <div className="flex flex-wrap items-center gap-3">
+                        <Select value={statusFilter} onValueChange={setStatusFilter}>
+                            <SelectTrigger className="w-40 border-2"><SelectValue placeholder="Status" /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Status</SelectItem>
+                                <SelectItem value="active">Active</SelectItem>
+                                <SelectItem value="unsubscribed">Unsubscribed</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <Select value={sourceFilter} onValueChange={setSourceFilter}>
+                            <SelectTrigger className="w-44 border-2"><SelectValue placeholder="Source" /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Sources</SelectItem>
+                                <SelectItem value="footer">Footer</SelectItem>
+                                <SelectItem value="contact-form">Contact Form</SelectItem>
+                                <SelectItem value="manual">Manual</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        {hasActiveFilters && (
+                            <Button variant="outline" size="sm" onClick={() => { setStatusFilter("all"); setSourceFilter("all"); }} className="border-2">
+                                <X size={14} className="mr-1" /> Clear
+                            </Button>
+                        )}
+                    </div>
+                )}
             </div>
 
             {loading ? (
                 <div className="space-y-2">{[1,2,3,4,5].map(i => <div key={i} className="h-14 rounded bg-gray-100 animate-pulse" />)}</div>
             ) : (
-                <SubscribersTable subscribers={filtered as never} />
+                <SubscribersTable subscribers={filtered as never} showSpam={showSpam} onMarkSpam={handleMarkSpam} />
             )}
 
             {!loading && filtered.length > 0 && (
                 <p className="text-sm text-gray-500 text-center">
-                    Showing {filtered.length} of {subscribers.length} subscribers
+                    Showing {filtered.length} of {subscribers.length} {showSpam ? "spam" : ""} subscribers
                 </p>
             )}
         </div>

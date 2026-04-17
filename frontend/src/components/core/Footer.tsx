@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
+import { useGoogleReCaptcha } from "react-google-recaptcha-v3"
 import Image from "next/image"
 import Link from "next/link"
 import { toast } from "sonner"
@@ -28,7 +29,10 @@ import { api } from "@/lib/api/client"
 
 export default function Footer() {
     const [email,     setEmail]     = useState("")
+    const [hp,        setHp]        = useState("")
     const [isLoading, setIsLoading] = useState(false)
+    const loadedAt = useRef(Date.now())
+    const { executeRecaptcha } = useGoogleReCaptcha()
 
     const scrollToTop = () => {
         window.scrollTo({
@@ -42,7 +46,14 @@ export default function Footer() {
         if (!trimmed) return
         setIsLoading(true)
         try {
-            const { data } = await api.newsletter.subscribe({ email: trimmed, source: "footer" })
+            const recaptchaToken = executeRecaptcha ? await executeRecaptcha("newsletter_subscribe") : undefined
+            const { data } = await api.newsletter.subscribe({
+                email: trimmed,
+                source: "footer",
+                hp,
+                loadedAt: loadedAt.current,
+                recaptchaToken,
+            })
             toast.success(data.message ?? "Subscribed successfully!")
             setEmail("")
         } catch (err) {
@@ -190,6 +201,17 @@ export default function Footer() {
                         </p>
 
                         <div>
+                            {/* Honeypot — invisible to humans, bots fill it */}
+                            <input
+                                type="text"
+                                name="website"
+                                value={hp}
+                                onChange={e => setHp(e.target.value)}
+                                tabIndex={-1}
+                                autoComplete="off"
+                                aria-hidden="true"
+                                style={{ position: "absolute", opacity: 0, height: 0, width: 0, border: 0, padding: 0 }}
+                            />
                             <Input
                                 type="email"
                                 placeholder="Your email"

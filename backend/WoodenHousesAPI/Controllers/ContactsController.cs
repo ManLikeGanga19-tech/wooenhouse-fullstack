@@ -16,13 +16,28 @@ namespace WoodenHousesAPI.Controllers;
 public class ContactsController(
     AppDbContext db,
     IEmailService emailService,
+    IRecaptchaService recaptcha,
     IConfiguration config) : ControllerBase
 {
     [HttpPost]
     [EnableRateLimiting("strict")]
     public async Task<IActionResult> Submit([FromBody] CreateContactRequest request)
     {
-        // 1. Save the contact entry
+        // 1. Spam detection — always save silently, never reveal detection to caller
+        var (isSpam, spamReason) = SpamDetector.Check(request.Hp, request.LoadedAt);
+
+        // 2. reCAPTCHA v3 — only check if honeypot/timing passed
+        if (!isSpam)
+        {
+            var (rcOk, _) = await recaptcha.VerifyAsync(request.RecaptchaToken);
+            if (!rcOk)
+            {
+                isSpam     = true;
+                spamReason = "recaptcha";
+            }
+        }
+
+        // 3. Save the contact entry
         var contact = new Contact
         {
             Name        = request.Name,
@@ -34,14 +49,15 @@ public class ContactsController(
             Timeline    = request.Timeline,
             Message     = request.Message,
             Newsletter  = request.Newsletter,
+            IsSpam      = isSpam,
+            SpamReason  = spamReason,
         };
 
         db.Contacts.Add(contact);
         await db.SaveChangesAsync();
 
-        // 2. Auto-subscribe to newsletter if opted in — separate save so a
-        //    duplicate-email constraint never rolls back the contact entry.
-        if (request.Newsletter)
+        // 4. Auto-subscribe to newsletter only for legitimate submissions
+        if (request.Newsletter && !isSpam)
         {
             var alreadySubscribed = await db.NewsletterSubscribers
                 .AnyAsync(s => s.Email == request.Email);
@@ -60,16 +76,18 @@ public class ContactsController(
                 }
                 catch (DbUpdateException)
                 {
-                    // Another request beat us to it (race condition on unique index).
-                    // Ignore — the contact was already saved successfully above.
+                    // Race condition on unique index — ignore
                 }
             }
         }
 
-        // 3. Notify admin via email (fire-and-forget)
-        var adminEmail = config["Email:FromAddress"] ?? "info@woodenhouseskenya.com";
-        _ = emailService.SendContactNotificationAsync(
-            adminEmail, request.Name, request.Email, request.Message);
+        // 5. Notify admin only for real submissions (fire-and-forget)
+        if (!isSpam)
+        {
+            var adminEmail = config["Email:FromAddress"] ?? "info@woodenhouseskenya.com";
+            _ = emailService.SendContactNotificationAsync(
+                adminEmail, request.Name, request.Email, request.Message);
+        }
 
         return Ok(new { message = "Thank you! We will be in touch soon." });
     }

@@ -3,6 +3,7 @@ import Footer from "@/components/core/Footer";
 import AosInit from "@/components/core/AosInit";
 import CookieBanner from "@/components/core/CookieBanner";
 import TawkToChat from "@/components/TawkToChat";
+import RecaptchaProvider from "@/components/core/RecaptchaProvider";
 import { getCookieConsent } from "@/actions/cookies";
 
 const jsonLd = {
@@ -61,7 +62,7 @@ export default async function SiteLayout({
   const showBanner = consent === null;
 
   return (
-    <>
+    <RecaptchaProvider>
       {/* Structured data for search engines and LLMs */}
       <script
         type="application/ld+json"
@@ -75,6 +76,6 @@ export default async function SiteLayout({
       </main>
       <Footer />
       {showBanner && <CookieBanner />}
-    </>
+    </RecaptchaProvider>
   );
 }

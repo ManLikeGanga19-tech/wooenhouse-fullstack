@@ -80,6 +80,15 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>, IAsyncL
                 services.Remove(emailDescriptor);
 
             services.AddScoped<IEmailService, NullEmailService>();
+
+            // Replace the real reCAPTCHA service with a no-op so tests never
+            // call Google's siteverify API (no token is sent from test requests).
+            var recaptchaDescriptor = services.SingleOrDefault(
+                d => d.ServiceType == typeof(IRecaptchaService));
+            if (recaptchaDescriptor != null)
+                services.Remove(recaptchaDescriptor);
+
+            services.AddScoped<IRecaptchaService, NullRecaptchaService>();
         });
     }
 
@@ -177,6 +186,16 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>, IAsyncL
         response.EnsureSuccessStatusCode();
         return client;
     }
+}
+
+/// <summary>
+/// No-op reCAPTCHA service for integration tests — always returns success
+/// so tests never call Google's siteverify API.
+/// </summary>
+internal sealed class NullRecaptchaService : IRecaptchaService
+{
+    public Task<(bool success, float score)> VerifyAsync(string? token)
+        => Task.FromResult((true, 1.0f));
 }
 
 /// <summary>

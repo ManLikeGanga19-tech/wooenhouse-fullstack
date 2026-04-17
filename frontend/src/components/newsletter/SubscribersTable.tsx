@@ -10,10 +10,18 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import StatusBadge from "@/components/common/StatusBadge";
 import { NewsletterSubscriber } from "@/types";
 import { formatDate } from "@/lib/utils/formatters";
-import { UserX, Mail } from "lucide-react";
+import { UserX, Mail, ShieldAlert, ShieldCheck, MoreVertical } from "lucide-react";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -25,15 +33,24 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { api } from "@/lib/api/client";
+import { toast } from "sonner";
 
 interface SubscribersTableProps {
-    subscribers: NewsletterSubscriber[];
+    subscribers:  NewsletterSubscriber[];
+    showSpam?:    boolean;
+    onMarkSpam?:  (id: string, isSpam: boolean) => void;
 }
 
-export default function SubscribersTable({ subscribers }: SubscribersTableProps) {
-    const handleUnsubscribe = (subscriber: NewsletterSubscriber) => {
-        console.log("Unsubscribing:", subscriber.email);
-        alert(`Unsubscribed ${subscriber.email}! (Will save to backend when ready)`);
+export default function SubscribersTable({ subscribers, showSpam = false, onMarkSpam }: SubscribersTableProps) {
+    const handleUnsubscribe = async (subscriber: NewsletterSubscriber) => {
+        try {
+            await api.newsletter.unsubscribe({ email: subscriber.email });
+            toast.success(`${subscriber.email} has been unsubscribed.`);
+            // Parent will reload via onMarkSpam pattern — for now just show toast
+        } catch {
+            toast.error("Failed to unsubscribe.");
+        }
     };
 
     const handleSendEmail = (subscriber: NewsletterSubscriber) => {
@@ -43,9 +60,11 @@ export default function SubscribersTable({ subscribers }: SubscribersTableProps)
     if (subscribers.length === 0) {
         return (
             <div className="rounded-lg border-2 border-gray-200 bg-white p-12 text-center">
-                <p className="text-gray-500">No subscribers found</p>
+                <p className="text-gray-500">{showSpam ? "No spam subscribers found" : "No subscribers found"}</p>
                 <p className="text-sm text-gray-400 mt-1">
-                    Subscribers will appear here when they sign up for the newsletter
+                    {showSpam
+                        ? "All subscriptions look legitimate"
+                        : "Subscribers will appear here when they sign up for the newsletter"}
                 </p>
             </div>
         );
@@ -60,14 +79,20 @@ export default function SubscribersTable({ subscribers }: SubscribersTableProps)
                             <TableHead className="font-semibold">Email</TableHead>
                             <TableHead className="font-semibold">Name</TableHead>
                             <TableHead className="font-semibold">Source</TableHead>
-                            <TableHead className="font-semibold">Status</TableHead>
-                            <TableHead className="font-semibold">Subscribed Date</TableHead>
+                            {showSpam
+                                ? <TableHead className="font-semibold">Reason</TableHead>
+                                : <TableHead className="font-semibold">Status</TableHead>
+                            }
+                            <TableHead className="font-semibold">Date</TableHead>
                             <TableHead className="text-right font-semibold">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {subscribers.map((subscriber) => (
-                            <TableRow key={subscriber.id} className="hover:bg-gray-50">
+                            <TableRow
+                                key={subscriber.id}
+                                className={`hover:bg-gray-50 ${showSpam ? "bg-red-50/30" : ""}`}
+                            >
                                 <TableCell className="font-medium">
                                     <div className="flex items-center gap-2">
                                         <Mail size={16} className="text-gray-400" />
@@ -79,55 +104,93 @@ export default function SubscribersTable({ subscribers }: SubscribersTableProps)
                                 </TableCell>
                                 <TableCell className="text-sm">
                                     <span className="capitalize text-gray-700">
-                                        {subscriber.source.replace("-", " ")}
+                                        {(subscriber.source ?? "").replace("-", " ")}
                                     </span>
                                 </TableCell>
                                 <TableCell>
-                                    <StatusBadge status={subscriber.status} type="newsletter" />
+                                    {showSpam ? (
+                                        <Badge variant="outline" className="border-red-300 text-red-600 text-xs capitalize">
+                                            <ShieldAlert size={11} className="mr-1" />
+                                            {(subscriber as never as { spamReason?: string }).spamReason ?? "spam"}
+                                        </Badge>
+                                    ) : (
+                                        <StatusBadge status={subscriber.status} type="newsletter" />
+                                    )}
                                 </TableCell>
                                 <TableCell className="text-sm text-gray-600">
                                     {formatDate(subscriber.subscribedAt)}
                                 </TableCell>
                                 <TableCell className="text-right">
                                     <div className="flex items-center justify-end gap-2">
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => handleSendEmail(subscriber)}
-                                            disabled={subscriber.status === "unsubscribed"}
-                                        >
-                                            <Mail size={14} className="mr-1" />
-                                            Email
-                                        </Button>
+                                        {!showSpam && (
+                                            <>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => handleSendEmail(subscriber)}
+                                                    disabled={subscriber.status === "unsubscribed"}
+                                                >
+                                                    <Mail size={14} className="mr-1" /> Email
+                                                </Button>
 
-                                        {subscriber.status === "active" && (
-                                            <AlertDialog>
-                                                <AlertDialogTrigger asChild>
-                                                    <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50">
-                                                        <UserX size={14} className="mr-1" />
-                                                        Unsubscribe
-                                                    </Button>
-                                                </AlertDialogTrigger>
-                                                <AlertDialogContent>
-                                                    <AlertDialogHeader>
-                                                        <AlertDialogTitle>Unsubscribe Subscriber?</AlertDialogTitle>
-                                                        <AlertDialogDescription>
-                                                            Are you sure you want to unsubscribe <strong>{subscriber.email}</strong> from the newsletter?
-                                                            This action can be reversed.
-                                                        </AlertDialogDescription>
-                                                    </AlertDialogHeader>
-                                                    <AlertDialogFooter>
-                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                        <AlertDialogAction
-                                                            onClick={() => handleUnsubscribe(subscriber)}
-                                                            className="bg-red-600 hover:bg-red-700"
-                                                        >
-                                                            Unsubscribe
-                                                        </AlertDialogAction>
-                                                    </AlertDialogFooter>
-                                                </AlertDialogContent>
-                                            </AlertDialog>
+                                                {subscriber.status === "active" && (
+                                                    <AlertDialog>
+                                                        <AlertDialogTrigger asChild>
+                                                            <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50">
+                                                                <UserX size={14} className="mr-1" /> Unsubscribe
+                                                            </Button>
+                                                        </AlertDialogTrigger>
+                                                        <AlertDialogContent>
+                                                            <AlertDialogHeader>
+                                                                <AlertDialogTitle>Unsubscribe Subscriber?</AlertDialogTitle>
+                                                                <AlertDialogDescription>
+                                                                    Are you sure you want to unsubscribe <strong>{subscriber.email}</strong> from the newsletter?
+                                                                    This action can be reversed.
+                                                                </AlertDialogDescription>
+                                                            </AlertDialogHeader>
+                                                            <AlertDialogFooter>
+                                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                                <AlertDialogAction
+                                                                    onClick={() => handleUnsubscribe(subscriber)}
+                                                                    className="bg-red-600 hover:bg-red-700"
+                                                                >
+                                                                    Unsubscribe
+                                                                </AlertDialogAction>
+                                                            </AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
+                                                )}
+                                            </>
                                         )}
+
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="sm">
+                                                    <MoreVertical size={16} />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                {!showSpam && onMarkSpam && (
+                                                    <>
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuItem
+                                                            className="text-red-600 focus:text-red-600"
+                                                            onClick={() => onMarkSpam(subscriber.id, true)}
+                                                        >
+                                                            <ShieldAlert size={14} className="mr-2" /> Mark as Spam
+                                                        </DropdownMenuItem>
+                                                    </>
+                                                )}
+                                                {showSpam && onMarkSpam && (
+                                                    <DropdownMenuItem
+                                                        className="text-green-700 focus:text-green-700"
+                                                        onClick={() => onMarkSpam(subscriber.id, false)}
+                                                    >
+                                                        <ShieldCheck size={14} className="mr-2" /> Not Spam
+                                                    </DropdownMenuItem>
+                                                )}
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
                                     </div>
                                 </TableCell>
                             </TableRow>

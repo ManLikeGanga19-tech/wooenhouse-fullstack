@@ -149,6 +149,7 @@ try
     builder.Services.AddScoped<IAuthService, AuthService>();
     builder.Services.AddScoped<IEmailService, EmailService>();
     builder.Services.AddScoped<IFileService, FileService>();
+    builder.Services.AddHttpClient<IRecaptchaService, RecaptchaService>();
 
     // ─── Controllers ─────────────────────────────────────────────────────────
     builder.Services.AddControllers(options =>

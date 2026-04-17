@@ -15,10 +15,16 @@ public class AdminContactsController(AppDbContext db) : ControllerBase
         [FromQuery] string? status,
         [FromQuery] string? priority,
         [FromQuery] string? search,
+        [FromQuery] bool showSpam = false,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20)
     {
         var query = db.Contacts.AsQueryable();
+
+        // By default show only legitimate submissions; showSpam=true shows only spam
+        query = showSpam
+            ? query.Where(c => c.IsSpam)
+            : query.Where(c => !c.IsSpam);
 
         if (!string.IsNullOrEmpty(status))
             query = query.Where(c => c.Status == status);
@@ -40,6 +46,14 @@ public class AdminContactsController(AppDbContext db) : ControllerBase
             .ToListAsync();
 
         return Ok(new { total, page, pageSize, items });
+    }
+
+    /// <summary>Returns the count of spam contacts (for the admin badge).</summary>
+    [HttpGet("spam-count")]
+    public async Task<IActionResult> SpamCount()
+    {
+        var count = await db.Contacts.CountAsync(c => c.IsSpam);
+        return Ok(new { count });
     }
 
     [HttpGet("{id}")]
@@ -64,6 +78,11 @@ public class AdminContactsController(AppDbContext db) : ControllerBase
         if (patch.TryGetValue("notes",       out var n))                  contact.Notes       = n?.ToString();
         if (patch.TryGetValue("contactedAt", out var ca) && ca is not null)
             contact.ContactedAt = DateTime.Parse(ca.ToString()!);
+        if (patch.TryGetValue("isSpam", out var sp) && sp is not null)
+        {
+            contact.IsSpam     = bool.Parse(sp.ToString()!);
+            contact.SpamReason = contact.IsSpam ? "manual" : null;
+        }
 
         contact.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();

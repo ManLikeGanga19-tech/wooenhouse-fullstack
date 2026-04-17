@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
+import { useGoogleReCaptcha } from "react-google-recaptcha-v3"
 import Image from "next/image"
 import {
   Breadcrumb, BreadcrumbItem, BreadcrumbLink,
@@ -32,22 +33,30 @@ export default function ContactPage() {
   const [formData,    setFormData]    = useState(INITIAL_FORM)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitted,   setSubmitted]   = useState(false)
+  const loadedAt = useRef(Date.now())
+  const [hp, setHp] = useState("")
+  const { executeRecaptcha } = useGoogleReCaptcha()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
 
     try {
+      const recaptchaToken = executeRecaptcha ? await executeRecaptcha("contact_form") : undefined
+
       await api.contact.submit({
-        name:        `${formData.firstName} ${formData.lastName}`.trim(),
-        email:       formData.email,
-        phone:       formData.phone,
-        serviceType: formData.serviceType,
-        location:    formData.projectLocation,
-        budget:      formData.budget,
-        timeline:    formData.timeline,
-        message:     formData.message,
-        newsletter:  formData.newsletter,
+        name:           `${formData.firstName} ${formData.lastName}`.trim(),
+        email:          formData.email,
+        phone:          formData.phone,
+        serviceType:    formData.serviceType,
+        location:       formData.projectLocation,
+        budget:         formData.budget,
+        timeline:       formData.timeline,
+        message:        formData.message,
+        newsletter:     formData.newsletter,
+        hp,
+        loadedAt:       loadedAt.current,
+        recaptchaToken,
       })
 
       toast.success("Message sent successfully!")
@@ -336,6 +345,18 @@ export default function ContactPage() {
                       </p>
                     </div>
                   </div>
+
+                  {/* Honeypot — invisible to humans, bots fill it */}
+                  <input
+                    type="text"
+                    name="website"
+                    value={hp}
+                    onChange={e => setHp(e.target.value)}
+                    tabIndex={-1}
+                    autoComplete="off"
+                    aria-hidden="true"
+                    style={{ position: "absolute", opacity: 0, height: 0, width: 0, border: 0, padding: 0 }}
+                  />
 
                   {/* Submit */}
                   <Button type="submit" disabled={isSubmitting}

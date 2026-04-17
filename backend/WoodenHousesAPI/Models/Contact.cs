@@ -18,6 +18,10 @@ public class Contact
     public string    Priority     { get; set; } = "medium";   // low | medium | high
     public string?   Notes        { get; set; }
 
+    // Spam detection
+    public bool      IsSpam       { get; set; } = false;
+    public string?   SpamReason   { get; set; }               // honeypot | fast-submit | manual
+
     public DateTime  CreatedAt    { get; set; } = DateTime.UtcNow;
     public DateTime  UpdatedAt    { get; set; } = DateTime.UtcNow;
     public DateTime? ContactedAt  { get; set; }

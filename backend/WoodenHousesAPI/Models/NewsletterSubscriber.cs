@@ -9,4 +9,8 @@ public class NewsletterSubscriber
     public string?   Source           { get; set; }             // contact-form | footer | manual
     public DateTime  SubscribedAt     { get; set; } = DateTime.UtcNow;
     public DateTime? UnsubscribedAt   { get; set; }
+
+    // Spam detection
+    public bool      IsSpam           { get; set; } = false;
+    public string?   SpamReason       { get; set; }             // honeypot | fast-submit | manual
 }
