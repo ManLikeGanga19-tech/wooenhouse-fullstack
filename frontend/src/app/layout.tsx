@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { GoogleAnalytics } from "@next/third-parties/google";
 import { Toaster } from "sonner";
 import "./globals.css";
 
@@ -108,6 +109,7 @@ export default function RootLayout({
         {children}
         <Toaster richColors position="top-center" closeButton duration={4000} />
       </body>
+      <GoogleAnalytics gaId="G-MQRRJKTNFT" />
     </html>
   );
 }

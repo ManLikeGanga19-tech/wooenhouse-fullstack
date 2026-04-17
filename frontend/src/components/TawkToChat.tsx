@@ -25,7 +25,7 @@ declare global {
             addEvent?: (event: string, metadata?: Record<string, any>, callback?: (error: any) => void) => void;
         };
         Tawk_LoadStart?: Date;
-        dataLayer?: any[];
+        dataLayer?: Object[];
     }
 }
 
