@@ -19,6 +19,8 @@ const nextConfig = {
       // Backend-served uploads (project images uploaded via admin panel)
       { protocol: "https", hostname: "api.woodenhouseskenya.com" },
       { protocol: "https", hostname: "*.woodenhouseskenya.com" },
+      // Cloudinary CDN (production image storage)
+      { protocol: "https", hostname: "res.cloudinary.com" },
       // Local dev
       { protocol: "http", hostname: "localhost" },
     ],
