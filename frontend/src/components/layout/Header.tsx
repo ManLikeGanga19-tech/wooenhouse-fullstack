@@ -15,6 +15,7 @@ import { useAuthStore } from "@/lib/store/authStore";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useUIStore } from "@/lib/store/uiStore";
 import NotificationBell from "@/components/layout/NotificationBell";
+import InstallPWA from "@/components/admin/InstallPWA";
 
 interface HeaderProps {
     title?: string;
@@ -55,6 +56,9 @@ export default function Header({ title }: HeaderProps) {
 
             {/* Spacer */}
             <div className="flex-1" />
+
+            {/* PWA install prompt */}
+            <InstallPWA />
 
             {/* Notifications */}
             <NotificationBell />

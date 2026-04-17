@@ -3,6 +3,10 @@ const withPWA = require("next-pwa")({
   register: true,
   skipWaiting: true,
   disable: process.env.NODE_ENV === "development",
+  fallbacks: {
+    document: "/offline", // shown when network is unavailable
+  },
+  buildExcludes: [/middleware-manifest\.json$/],
 });
 
 /** @type {import('next').NextConfig} */
