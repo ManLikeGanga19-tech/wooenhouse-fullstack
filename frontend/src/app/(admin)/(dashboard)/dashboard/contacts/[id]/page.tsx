@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Phone, Mail, MapPin, Calendar, FileText, User } from "lucide-react";
+import { ArrowLeft, Phone, Mail, MapPin, Calendar, FileText, User, PhoneCall } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -76,7 +76,7 @@ export default function ContactDetailsPage() {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 pb-24 md:pb-0">
             <div className="flex items-center gap-4">
                 <Button variant="outline" size="icon" onClick={() => router.push(back)} className="border-2">
                     <ArrowLeft size={20} />
@@ -93,6 +93,48 @@ export default function ContactDetailsPage() {
                     <FileText size={16} className="mr-2" /> Create Quote
                 </Button>
             </div>
+
+            {/* ── Mobile floating quick-action bar ─────────────────────────────
+                Sits above the bottom tab bar (bottom-16 = 64px tab height).
+                Only rendered while this page is mounted — disappears on back.   */}
+            {contact && (
+                <div
+                    className="md:hidden fixed inset-x-0 z-40 px-4 pb-2"
+                    style={{ bottom: "calc(56px + env(safe-area-inset-bottom))" }}
+                >
+                    <div className="flex items-center gap-2 rounded-2xl border border-gray-200 bg-white/95 backdrop-blur-sm shadow-lg px-3 py-2.5">
+                        {contact.phone && (
+                            <a
+                                href={`tel:${contact.phone}`}
+                                className="flex flex-1 flex-col items-center gap-0.5 rounded-xl py-2 text-[11px] font-medium text-gray-700 active:bg-gray-100 transition-colors"
+                            >
+                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-50">
+                                    <PhoneCall size={16} className="text-green-600" />
+                                </div>
+                                Call
+                            </a>
+                        )}
+                        <a
+                            href={`mailto:${contact.email}`}
+                            className="flex flex-1 flex-col items-center gap-0.5 rounded-xl py-2 text-[11px] font-medium text-gray-700 active:bg-gray-100 transition-colors"
+                        >
+                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50">
+                                <Mail size={16} className="text-blue-600" />
+                            </div>
+                            Email
+                        </a>
+                        <button
+                            onClick={() => router.push(qs ? `/dashboard/quotes/new?contactId=${contact.id}&${qs}` : `/dashboard/quotes/new?contactId=${contact.id}`)}
+                            className="flex flex-1 flex-col items-center gap-0.5 rounded-xl py-2 text-[11px] font-medium text-gray-700 active:bg-gray-100 transition-colors"
+                        >
+                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#F5F0EB]">
+                                <FileText size={16} style={{ color: "#8B5E3C" }} />
+                            </div>
+                            Quote
+                        </button>
+                    </div>
+                </div>
+            )}
 
             <div className="grid gap-6 lg:grid-cols-3">
                 <div className="lg:col-span-2 space-y-6">
