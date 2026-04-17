@@ -29,6 +29,7 @@ export default function Hero({ images }: { images: string[] }) {
             src={src}
             alt={`Hero image ${index + 1}`}
             fill
+            sizes="100vw"
             className="object-cover object-center"
             priority={index === 0}
           />

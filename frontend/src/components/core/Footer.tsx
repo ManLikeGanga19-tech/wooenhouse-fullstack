@@ -137,19 +137,19 @@ export default function Footer() {
                             data-aos-duration="800"
                             data-aos-delay="500"
                         >
-                            <Link href="https://www.facebook.com/mitchiehousing/" className="hover:scale-110 transition-all">
+                            <Link href="https://www.facebook.com/mitchiehousing/" aria-label="Follow us on Facebook" className="hover:scale-110 transition-all">
                                 <Facebook size={22} className="sm:w-6 sm:h-6" style={{ color: "#C49A6C" }} />
                             </Link>
-                            <Link href="https://www.instagram.com/woodenhouseskenya/" className="hover:scale-110 transition-all">
+                            <Link href="https://www.instagram.com/woodenhouseskenya/" aria-label="Follow us on Instagram" className="hover:scale-110 transition-all">
                                 <Instagram size={22} className="sm:w-6 sm:h-6" style={{ color: "#C49A6C" }} />
                             </Link>
-                            <Link href="https://x.com/wooden_kenya/" className="hover:scale-110 transition-all">
+                            <Link href="https://x.com/wooden_kenya/" aria-label="Follow us on X (Twitter)" className="hover:scale-110 transition-all">
                                 <XBrandIcon size={22} color="#C49A6C" />
                             </Link>
-                            <Link href="https://www.youtube.com/@WoodenHouseKenya" target="_blank" rel="noopener noreferrer" className="hover:scale-110 transition-all">
+                            <Link href="https://www.youtube.com/@WoodenHouseKenya" target="_blank" rel="noopener noreferrer" aria-label="Watch us on YouTube" className="hover:scale-110 transition-all">
                                 <Youtube size={22} className="sm:w-6 sm:h-6" style={{ color: "#C49A6C" }} />
                             </Link>
-                            <a href="https://wa.me/254789104438" target="_blank" rel="noopener noreferrer" className="hover:scale-110 transition-all">
+                            <a href="https://wa.me/254789104438" target="_blank" rel="noopener noreferrer" aria-label="Chat with us on WhatsApp" className="hover:scale-110 transition-all">
                                 <WhatsAppIcon size={22} color="#C49A6C" />
                             </a>
                         </div>

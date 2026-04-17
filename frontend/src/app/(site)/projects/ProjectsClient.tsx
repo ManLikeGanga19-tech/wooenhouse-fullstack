@@ -150,7 +150,7 @@ export default function ProjectsClient() {
                                 >
                                     <div className="relative w-full h-[220px] sm:h-60 overflow-hidden bg-gray-100">
                                         {cover ? (
-                                            <Image src={cover} alt={project.title} fill className="object-cover transition-transform duration-500 group-hover:scale-110" unoptimized />
+                                            <Image src={cover} alt={project.title} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover transition-transform duration-500 group-hover:scale-110" />
                                         ) : (
                                             <div className="flex h-full items-center justify-center">
                                                 <ImageOff size={32} className="text-gray-300" />
@@ -216,22 +216,22 @@ export default function ProjectsClient() {
                 return (
                     <div className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-4" onClick={() => setSelected(null)}>
                         <div className="relative w-full max-w-6xl max-h-[90vh] overflow-y-auto bg-white rounded-2xl" onClick={e => e.stopPropagation()}>
-                            <button onClick={() => setSelected(null)} className="absolute top-4 right-4 z-10 p-2 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-all">
+                            <button onClick={() => setSelected(null)} aria-label="Close" className="absolute top-4 right-4 z-10 p-2 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-all">
                                 <X size={24} style={{ color: "#8B5E3C" }} />
                             </button>
 
                             <div className="relative h-[300px] sm:h-[420px] bg-gray-100">
                                 {imgs[imageIndex] ? (
-                                    <Image src={imgs[imageIndex]} alt={selected.title} fill className="object-cover" unoptimized />
+                                    <Image src={imgs[imageIndex]} alt={selected.title} fill sizes="(max-width: 768px) 100vw, 90vw" className="object-cover" />
                                 ) : (
                                     <div className="flex h-full items-center justify-center"><ImageOff size={48} className="text-gray-300" /></div>
                                 )}
                                 {imgs.length > 1 && (
                                     <>
-                                        <button onClick={prevImage} className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-white/90 rounded-full shadow-lg hover:bg-white">
+                                        <button onClick={prevImage} aria-label="Previous image" className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-white/90 rounded-full shadow-lg hover:bg-white">
                                             <ChevronLeft size={24} style={{ color: "#8B5E3C" }} />
                                         </button>
-                                        <button onClick={nextImage} className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-white/90 rounded-full shadow-lg hover:bg-white">
+                                        <button onClick={nextImage} aria-label="Next image" className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-white/90 rounded-full shadow-lg hover:bg-white">
                                             <ChevronRight size={24} style={{ color: "#8B5E3C" }} />
                                         </button>
                                         <div className="absolute bottom-4 right-4 px-4 py-1 bg-black/70 text-white rounded-full text-sm">
@@ -271,10 +271,10 @@ export default function ProjectsClient() {
                                     <div className="mb-6">
                                         <div className="flex gap-2 overflow-x-auto pb-2">
                                             {imgs.map((img, i) => (
-                                                <button key={i} onClick={() => setImageIndex(i)}
+                                                <button key={i} onClick={() => setImageIndex(i)} aria-label={`View image ${i + 1}`}
                                                     className={`relative shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all ${i === imageIndex ? "border-[#8B5E3C] scale-105" : "border-gray-200 hover:border-[#8B5E3C]"}`}
                                                 >
-                                                    <Image src={img} alt="" fill className="object-cover" unoptimized />
+                                                    <Image src={img} alt={`Thumbnail ${i + 1}`} fill sizes="80px" className="object-cover" />
                                                 </button>
                                             ))}
                                         </div>

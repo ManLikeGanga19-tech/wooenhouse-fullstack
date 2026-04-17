@@ -98,16 +98,16 @@ export default function Navbar() {
                     </div>
 
                     <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-                        <Link href="https://www.facebook.com/mitchiehousing/" className="hover:scale-110 transition-all">
+                        <Link href="https://www.facebook.com/mitchiehousing/" aria-label="Follow us on Facebook" className="hover:scale-110 transition-all">
                             <Facebook size={16} className="sm:w-[18px] sm:h-[18px]" style={{ color: "#8B5E3C" }} />
                         </Link>
-                        <Link href="https://www.instagram.com/woodenhouseskenya/" className="hover:scale-110 transition-all">
+                        <Link href="https://www.instagram.com/woodenhouseskenya/" aria-label="Follow us on Instagram" className="hover:scale-110 transition-all">
                             <Instagram size={16} className="sm:w-[18px] sm:h-[18px]" style={{ color: "#8B5E3C" }} />
                         </Link>
-                        <Link href="https://x.com/wooden_kenya/" className="hover:scale-110 transition-all">
+                        <Link href="https://x.com/wooden_kenya/" aria-label="Follow us on X (Twitter)" className="hover:scale-110 transition-all">
                             <XBrandIcon size={18} color="#8B5E3C" />
                         </Link>
-                        <Link href="https://www.youtube.com/@WoodenHouseKenya" target="_blank" rel="noopener noreferrer" className="hover:scale-110 transition-all">
+                        <Link href="https://www.youtube.com/@WoodenHouseKenya" target="_blank" rel="noopener noreferrer" aria-label="Watch us on YouTube" className="hover:scale-110 transition-all">
                             <Youtube size={18} style={{ color: "#8B5E3C" }} />
                         </Link>
                     </div>
@@ -138,16 +138,16 @@ export default function Navbar() {
                         </div>
 
                         <div className="flex items-center gap-2.5">
-                            <Link href="https://www.facebook.com/mitchiehousing/" className="hover:scale-110 transition-all">
+                            <Link href="https://www.facebook.com/mitchiehousing/" aria-label="Follow us on Facebook" className="hover:scale-110 transition-all">
                                 <Facebook size={16} style={{ color: "#8B5E3C" }} />
                             </Link>
-                            <Link href="https://www.instagram.com/woodenhouseskenya/" className="hover:scale-110 transition-all">
+                            <Link href="https://www.instagram.com/woodenhouseskenya/" aria-label="Follow us on Instagram" className="hover:scale-110 transition-all">
                                 <Instagram size={16} style={{ color: "#8B5E3C" }} />
                             </Link>
-                            <Link href="https://x.com/wooden_kenya/" className="hover:scale-110 transition-all">
+                            <Link href="https://x.com/wooden_kenya/" aria-label="Follow us on X (Twitter)" className="hover:scale-110 transition-all">
                                 <XBrandIcon size={16} color="#8B5E3C" />
                             </Link>
-                            <Link href="#" className="hover:scale-110 transition-all">
+                            <Link href="https://www.youtube.com/@WoodenHouseKenya" target="_blank" rel="noopener noreferrer" aria-label="Watch us on YouTube" className="hover:scale-110 transition-all">
                                 <Youtube size={16} style={{ color: "#8B5E3C" }} />
                             </Link>
                         </div>
