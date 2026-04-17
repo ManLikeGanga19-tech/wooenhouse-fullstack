@@ -193,3 +193,29 @@ body.nav-open .tawk-min-container {
   left: 20px !important;
   right: auto !important;
 }
+
+/* ─── Mobile / PWA app-feel improvements ─────────────────────────────────── */
+
+/* Remove the grey flash on tap for all interactive elements */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Instant tap response — removes the 300ms delay on touch devices */
+button, a, [role="button"], input, select, textarea {
+  touch-action: manipulation;
+}
+
+/* Prevent text selection on UI chrome (tabs, buttons, labels) */
+nav, .select-none {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Active state visual feedback for mobile (replaces hover) */
+@media (hover: none) and (pointer: coarse) {
+  a:active, button:active {
+    opacity: 0.7;
+    transition: opacity 0.1s;
+  }
+}

@@ -36,12 +36,15 @@ export default function Header({ title }: HeaderProps) {
     };
 
     return (
-        <header className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b border-gray-200 bg-white px-4 md:px-6">
-            {/* Mobile menu button */}
+        <header
+            className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b border-gray-200 bg-white px-4 md:px-6"
+            style={{ paddingTop: "env(safe-area-inset-top)" }}
+        >
+            {/* Desktop-only menu button (mobile uses BottomTabBar) */}
             <Button
                 variant="ghost"
                 size="icon"
-                className="md:hidden"
+                className="hidden md:hidden"
                 onClick={() => setSidebarOpen(true)}
             >
                 <Menu size={20} />

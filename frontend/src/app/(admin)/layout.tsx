@@ -1,6 +1,14 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Toaster } from "@/components/ui/sonner";
 import { Providers } from "@/app/(admin)/providers";
+
+// viewport-fit=cover lets the app extend under the iPhone notch / home bar
+// so we can manually pad with env(safe-area-inset-*) for a true native feel
+export const viewport: Viewport = {
+  viewportFit: "cover",
+  width: "device-width",
+  initialScale: 1,
+};
 
 export const metadata: Metadata = {
   title: {

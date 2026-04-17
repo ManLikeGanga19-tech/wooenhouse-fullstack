@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
-import { Users, ShieldAlert } from "lucide-react";
+import { useEffect, useState, useMemo, useCallback } from "react";
+import { Users, ShieldAlert, RefreshCw } from "lucide-react";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import SearchBar from "@/components/common/SearchBar";
 import ExportMenu from "@/components/common/ExportMenu";
 import ContactsTable from "@/components/contacts/ContactsTable";
@@ -19,15 +20,17 @@ export default function ContactsPage() {
     const [serviceFilter, setServiceFilter] = useState("all");
     const [showSpam,      setShowSpam]      = useState(false);
 
-    const load = (spam = showSpam) => {
+    const load = useCallback((spam = showSpam) => {
         setLoading(true);
         api.admin.contacts.getAll({ pageSize: 500, showSpam: spam })
             .then(r => setContacts(r.data.items))
             .catch(() => toast.error("Failed to load contacts"))
             .finally(() => setLoading(false));
-    };
+    }, [showSpam]); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const { pullDistance, isRefreshing } = usePullToRefresh(load);
 
     const handleSpamToggle = (spam: boolean) => {
         setShowSpam(spam);
@@ -61,6 +64,19 @@ export default function ContactsPage() {
 
     return (
         <div className="space-y-6">
+            {/* Pull-to-refresh indicator (mobile only) */}
+            {(pullDistance > 0 || isRefreshing) && (
+                <div
+                    className="md:hidden flex justify-center overflow-hidden transition-all"
+                    style={{ height: isRefreshing ? "36px" : `${pullDistance * 0.5}px`, opacity: isRefreshing ? 1 : pullDistance / 70 }}
+                >
+                    <RefreshCw
+                        size={20}
+                        className={`text-[#8B5E3C] ${isRefreshing ? "animate-spin" : ""}`}
+                        style={{ transform: `rotate(${pullDistance * 3}deg)` }}
+                    />
+                </div>
+            )}
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h1 className="text-3xl font-bold" style={{ color: "#8B5E3C" }}>Contacts</h1>
