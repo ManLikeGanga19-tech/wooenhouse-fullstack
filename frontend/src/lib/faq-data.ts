@@ -1,7 +1,7 @@
 export const FAQS = [
     {
         q: "How much does a wooden house cost in Kenya?",
-        a: "The cost depends on size, design and finishes. A basic one-bedroom structure of around 40 square metres starts from KES 900,000. Larger family homes of 80 to 120 square metres range from KES 1,800,000 to KES 3,500,000. We provide free, site-specific quotes — contact us with your location and requirements.",
+        a: "Our rate is KES 50,000 per square foot. A small garden office or cabin of around 200 sq ft starts at KES 10,000,000. A one-bedroom home of 400 sq ft comes to approximately KES 20,000,000. A two-bedroom home of 600 sq ft is around KES 30,000,000. Larger family homes of 1,000 to 1,200 sq ft range from KES 50,000,000 to KES 60,000,000. Final cost depends on design, site and finishes — contact us for a free quote.",
     },
     {
         q: "How long does it take to build a wooden house in Kenya?",
@@ -17,7 +17,7 @@ export const FAQS = [
     },
     {
         q: "How do wooden houses compare to brick houses in Kenya?",
-        a: "Wooden houses are faster to build, naturally better insulated for temperature control, and generally more affordable per square metre. Brick houses can carry higher resale value in dense urban markets. For holiday homes, eco-lodges, staff quarters, garden offices and rural properties, timber construction is usually the stronger choice.",
+        a: "Wooden houses are faster to build, naturally better insulated for temperature control, and generally more affordable per square foot. Brick houses can carry higher resale value in dense urban markets. For holiday homes, eco-lodges, staff quarters, garden offices and rural properties, timber construction is usually the stronger choice.",
     },
     {
         q: "Do you offer a warranty on your structures?",
