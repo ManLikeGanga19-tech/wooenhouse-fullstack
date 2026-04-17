@@ -182,9 +182,9 @@ export default async function BlogPostPage({
                     className="mt-12 rounded-2xl p-6 sm:p-8 text-white"
                     style={{ background: "#8B5E3C" }}
                 >
-                    <h3 className="text-xl font-bold mb-2">Una mradi akilini?</h3>
+                    <h3 className="text-xl font-bold mb-2">Have a project in mind?</h3>
                     <p className="text-white/85 mb-5 text-sm sm:text-base">
-                        Tuna uzoefu wa miaka mingi kujenga kote Kenya. Piga simu au tuandike leo na tutakujibu haraka.
+                        We have years of experience building across Kenya. Call or write to us today and we will get back to you quickly.
                     </p>
                     <Link
                         href="/contact"
