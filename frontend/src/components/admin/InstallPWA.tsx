@@ -4,32 +4,53 @@ import { useState, useEffect, useRef } from "react";
 import { Download, X, Share } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+type BeforeInstallPromptEvent = Event & {
+    prompt: () => Promise<void>;
+    userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+};
+
+declare global {
+    interface Window {
+        __pwaPrompt: BeforeInstallPromptEvent | null;
+    }
+}
+
 export default function InstallPWA() {
     const [showBanner, setShowBanner] = useState(false);
     const [isIOS, setIsIOS] = useState(false);
-    const deferredPrompt = useRef<Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> } | null>(null);
+    const deferredPrompt = useRef<BeforeInstallPromptEvent | null>(null);
 
     useEffect(() => {
         // Don't show if already running as installed PWA
         if (window.matchMedia("(display-mode: standalone)").matches) return;
-        // Don't show if user has already dismissed
+        // Don't show if user has already dismissed this session
         if (sessionStorage.getItem("pwa-banner-dismissed")) return;
 
-        // iOS detection — Safari on iPhone/iPad doesn't fire beforeinstallprompt
+        // iOS — Safari doesn't fire beforeinstallprompt
         const ua = navigator.userAgent;
-        const isIOSDevice = /iPad|iPhone|iPod/.test(ua) && !(window as unknown as { MSStream?: unknown }).MSStream;
+        const isIOSDevice =
+            /iPad|iPhone|iPod/.test(ua) &&
+            !(window as unknown as { MSStream?: unknown }).MSStream;
         if (isIOSDevice) {
             setIsIOS(true);
             setShowBanner(true);
             return;
         }
 
+        // Check if the event was already captured by the inline script in layout.tsx
+        // (beforeinstallprompt can fire before React hydrates)
+        if (window.__pwaPrompt) {
+            deferredPrompt.current = window.__pwaPrompt;
+            setShowBanner(true);
+            return;
+        }
+
+        // Otherwise listen for it (fires on subsequent navigations / cold visits)
         const handler = (e: Event) => {
             e.preventDefault();
-            deferredPrompt.current = e as typeof deferredPrompt.current;
+            deferredPrompt.current = e as BeforeInstallPromptEvent;
             setShowBanner(true);
         };
-
         window.addEventListener("beforeinstallprompt", handler);
         return () => window.removeEventListener("beforeinstallprompt", handler);
     }, []);
@@ -40,6 +61,7 @@ export default function InstallPWA() {
         const { outcome } = await deferredPrompt.current.userChoice;
         if (outcome === "accepted") {
             setShowBanner(false);
+            window.__pwaPrompt = null;
         }
         deferredPrompt.current = null;
     };
