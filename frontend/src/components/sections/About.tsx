@@ -119,7 +119,7 @@ export default function About() {
                                 color: "white",
                             }}
                         >
-                            <Link href="/about">Explore More</Link>
+                            <Link href="/about">About Wooden Houses Kenya</Link>
                         </Button>
                     </div>
 
