@@ -1,5 +1,22 @@
-"use client"
+import type { Metadata } from "next"
 import Image from "next/image"
+
+export const metadata: Metadata = {
+    title: "About Us",
+    description: "Wooden Houses Kenya has been crafting sustainable wooden homes, cabins, and commercial structures across Kenya for 8+ years. Discover our story, mission, values, and construction process.",
+    alternates: { canonical: "/about" },
+    openGraph: {
+        title: "About Wooden Houses Kenya | Our Story & Mission",
+        description: "Learn how Wooden Houses Kenya became a trusted timber construction company — our story, mission, values, and step-by-step process from consultation to handover.",
+        url: "https://woodenhouseskenya.com/about",
+        images: [{ url: "/about.jpg", width: 1200, height: 630, alt: "About Wooden Houses Kenya" }],
+    },
+    twitter: {
+        title: "About Wooden Houses Kenya | Our Story & Mission",
+        description: "8+ years of sustainable wooden construction across Kenya — discover our story, mission, and how we work.",
+        images: ["/about.jpg"],
+    },
+}
 import {
     Breadcrumb,
     BreadcrumbItem,
@@ -10,7 +27,7 @@ import {
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 
-export default function AboutPage() {
+export default async function AboutPage() {
     return (
         <div className="min-h-screen bg-white w-full">
 

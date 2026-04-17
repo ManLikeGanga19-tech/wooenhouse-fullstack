@@ -1,4 +1,21 @@
-"use client"
+import type { Metadata } from "next"
+
+export const metadata: Metadata = {
+    title: "Our Services",
+    description: "Custom wooden houses, general carpentry, interior design consultation, site assessment, and more — Wooden Houses Kenya provides full-service timber construction across Kenya and East Africa.",
+    alternates: { canonical: "/services" },
+    openGraph: {
+        title: "Wooden Construction Services in Kenya | Wooden Houses Kenya",
+        description: "From custom wooden homes and eco-cabins to bespoke furniture and garden offices — explore the full range of timber construction services by Wooden Houses Kenya.",
+        url: "https://woodenhouseskenya.com/services",
+        images: [{ url: "/services/service1.jpg", width: 1200, height: 630, alt: "Wooden Construction Services Kenya" }],
+    },
+    twitter: {
+        title: "Wooden Construction Services | Wooden Houses Kenya",
+        description: "Custom homes, carpentry, cabins, offices & furniture — professional wooden construction across Kenya.",
+        images: ["/services/service1.jpg"],
+    },
+}
 
 import {
   Breadcrumb,

@@ -6,9 +6,10 @@ import TawkToChat from "@/components/TawkToChat";
 import RecaptchaProvider from "@/components/core/RecaptchaProvider";
 import { getCookieConsent } from "@/actions/cookies";
 
-const jsonLd = {
+const localBusinessJsonLd = {
   "@context": "https://schema.org",
   "@type": ["LocalBusiness", "HomeAndConstructionBusiness"],
+  "@id": "https://woodenhouseskenya.com/#organization",
   name:          "Wooden Houses Kenya",
   alternateName: "Wooden Houses KE",
   description:
@@ -29,6 +30,35 @@ const jsonLd = {
     latitude:   -0.7167,
     longitude:  36.4278,
   },
+  openingHoursSpecification: [
+    {
+      "@type":     "OpeningHoursSpecification",
+      dayOfWeek:   ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+      opens:       "08:00",
+      closes:      "18:00",
+    },
+    {
+      "@type":     "OpeningHoursSpecification",
+      dayOfWeek:   ["Saturday"],
+      opens:       "09:00",
+      closes:      "16:00",
+    },
+  ],
+  contactPoint: [
+    {
+      "@type":        "ContactPoint",
+      telephone:      "+254716111187",
+      contactType:    "customer service",
+      availableLanguage: ["English", "Swahili"],
+      areaServed:     "KE",
+    },
+    {
+      "@type":        "ContactPoint",
+      email:          "info@woodenhouseskenya.com",
+      contactType:    "customer service",
+      availableLanguage: ["English", "Swahili"],
+    },
+  ],
   areaServed: [
     { "@type": "Country", name: "Kenya" },
     { "@type": "Country", name: "Uganda" },
@@ -53,6 +83,21 @@ const jsonLd = {
   },
 };
 
+const websiteJsonLd = {
+  "@context": "https://schema.org",
+  "@type":    "WebSite",
+  "@id":      "https://woodenhouseskenya.com/#website",
+  url:        "https://woodenhouseskenya.com",
+  name:       "Wooden Houses Kenya",
+  description: "Custom wooden houses, cabins, offices and furniture built across Kenya and East Africa.",
+  publisher: { "@id": "https://woodenhouseskenya.com/#organization" },
+  potentialAction: {
+    "@type":       "SearchAction",
+    target:        "https://woodenhouseskenya.com/projects?q={search_term_string}",
+    "query-input": "required name=search_term_string",
+  },
+};
+
 export default async function SiteLayout({
   children,
 }: {
@@ -63,10 +108,14 @@ export default async function SiteLayout({
 
   return (
     <RecaptchaProvider>
-      {/* Structured data for search engines and LLMs */}
+      {/* Structured data — LocalBusiness + WebSite schemas */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(localBusinessJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
       />
       <AosInit />
       <Navbar />
