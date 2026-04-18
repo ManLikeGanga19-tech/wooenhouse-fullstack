@@ -114,42 +114,58 @@ public class AdminQuotesController(AppDbContext db, IEmailService emailService, 
         if (string.IsNullOrEmpty(quote.PublicToken))
             quote.PublicToken = Guid.NewGuid().ToString("N");
 
-        var frontendUrl  = config["Frontend:Url"] ?? "https://woodenhouseskenya.com";
-        var publicLink   = $"{frontendUrl}/quote/{quote.PublicToken}";
-        var validUntil   = quote.CreatedAt.AddDays(quote.ValidityDays).ToString("MMMM dd, yyyy");
-        var projectRow   = string.IsNullOrEmpty(quote.HouseType) ? "" :
-            $"<tr><td style='padding:5px 0;color:#6b7280;'>Project</td><td style='padding:5px 0;text-align:right;'>{quote.HouseType}{(string.IsNullOrEmpty(quote.HouseSize) ? "" : $" — {quote.HouseSize}")}</td></tr>";
-        var domainLabel  = frontendUrl.Replace("https://", "").Replace("http://", "");
+        var frontendUrl = config["Frontend:Url"] ?? "https://woodenhouseskenya.com";
+        var publicLink  = $"{frontendUrl}/quote/{quote.PublicToken}";
+        var validUntil  = quote.CreatedAt.AddDays(quote.ValidityDays).ToString("MMMM dd, yyyy");
+        var projectRow  = string.IsNullOrEmpty(quote.HouseType) ? "" :
+            $"<tr><td style='padding:10px 0;border-bottom:1px solid #F0E8DF;color:#888;font-size:13px;'>Project</td><td style='padding:10px 0;border-bottom:1px solid #F0E8DF;font-size:14px;text-align:right;'>{quote.HouseType}{(string.IsNullOrEmpty(quote.HouseSize) ? "" : $" — {quote.HouseSize}")}</td></tr>";
 
-        var html =
-            "<!DOCTYPE html><html><head><meta charset='utf-8'></head><body style='margin:0;padding:0;background:#f5f5f5;font-family:Arial,sans-serif;color:#1a1a1a;'>" +
-            "<div style='max-width:600px;margin:32px auto;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);'>" +
-              "<div style='background:#8B5E3C;padding:28px 32px;text-align:center;'>" +
-                "<h1 style='color:#fff;margin:0;font-size:22px;'>Wooden Houses Kenya</h1>" +
-                "<p style='color:#e8d5c4;margin:6px 0 0;font-size:13px;'>Your Quotation is Ready</p>" +
-              "</div>" +
-              "<div style='padding:28px 32px;'>" +
-                $"<p style='font-size:15px;'>Dear <strong>{quote.CustomerName}</strong>,</p>" +
-                "<p>Thank you for your interest. Please find your quotation details below.</p>" +
-                "<table style='width:100%;background:#faf8f5;border:1px solid #e8d5c4;border-radius:6px;padding:16px 20px;border-collapse:collapse;margin-bottom:20px;'>" +
-                  "<tbody>" +
-                    $"<tr><td style='padding:5px 0;color:#6b7280;'>Quotation #</td><td style='padding:5px 0;text-align:right;'><strong>{quote.QuoteNumber}</strong></td></tr>" +
-                    projectRow +
-                    $"<tr><td style='padding:5px 0;color:#6b7280;'>Valid Until</td><td style='padding:5px 0;text-align:right;'>{validUntil}</td></tr>" +
-                    $"<tr><td style='padding:10px 0 5px;font-weight:700;font-size:16px;border-top:1px solid #e8d5c4;color:#8B5E3C;'>Total</td><td style='padding:10px 0 5px;text-align:right;font-weight:700;font-size:16px;border-top:1px solid #e8d5c4;color:#8B5E3C;'>KES {quote.FinalPrice:N0}</td></tr>" +
-                  "</tbody>" +
-                "</table>" +
-                "<div style='text-align:center;margin:24px 0;'>" +
-                  $"<a href='{publicLink}' style='background:#8B5E3C;color:#fff;text-decoration:none;padding:13px 28px;border-radius:6px;font-size:15px;font-weight:600;display:inline-block;'>View Full Quotation &rarr;</a>" +
-                "</div>" +
-                $"<p style='font-size:13px;color:#6b7280;'>If the button doesn't work, copy this link:<br><a href='{publicLink}' style='color:#8B5E3C;'>{publicLink}</a></p>" +
-              "</div>" +
-              "<div style='background:#f5f0eb;padding:16px 32px;text-align:center;font-size:12px;color:#6b7280;'>" +
-                "<p>Questions? Email <a href='mailto:info@woodenhouseskenya.com' style='color:#8B5E3C;'>info@woodenhouseskenya.com</a> or call <a href='tel:+254716111187' style='color:#8B5E3C;'>+254 716 111 187</a></p>" +
-                $"<p style='margin-top:8px;'>Wooden Houses Kenya &middot; Naivasha, Kenya &middot; <a href='{frontendUrl}' style='color:#8B5E3C;'>{domainLabel}</a></p>" +
-              "</div>" +
-            "</div>" +
-            "</body></html>";
+        var quoteContent = $"""
+            <h2 style="margin:0 0 8px;color:#8B5E3C;font-size:22px;font-weight:700;text-align:center;">Your Quotation is Ready</h2>
+            <p style="margin:0 0 24px;color:#666;font-size:14px;text-align:center;">Reference: <strong>{quote.QuoteNumber}</strong></p>
+
+            <p style="margin:0 0 16px;font-size:15px;color:#333;">Dear <strong>{quote.CustomerName}</strong>,</p>
+            <p style="margin:0 0 24px;font-size:14px;color:#555;line-height:1.7;">
+              Thank you for your interest in Wooden Houses Kenya. Please find your personalised quotation details below.
+            </p>
+
+            <!-- Quote summary table -->
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+                   style="border-collapse:collapse;background:#FAF7F4;border-radius:8px;margin-bottom:24px;">
+              <tr>
+                <td style="padding:12px 16px;border-bottom:1px solid #EAE0D5;color:#888;font-size:13px;width:140px;">Quotation #</td>
+                <td style="padding:12px 16px;border-bottom:1px solid #EAE0D5;font-weight:700;font-size:14px;text-align:right;">{quote.QuoteNumber}</td>
+              </tr>
+              {projectRow}
+              <tr>
+                <td style="padding:10px 16px;border-bottom:1px solid #EAE0D5;color:#888;font-size:13px;">Valid Until</td>
+                <td style="padding:10px 16px;border-bottom:1px solid #EAE0D5;font-size:14px;text-align:right;">{validUntil}</td>
+              </tr>
+              <tr>
+                <td style="padding:14px 16px;color:#8B5E3C;font-size:16px;font-weight:700;">Total</td>
+                <td style="padding:14px 16px;color:#8B5E3C;font-size:18px;font-weight:700;text-align:right;">KES {quote.FinalPrice:N0}</td>
+              </tr>
+            </table>
+
+            <div style="text-align:center;margin-bottom:24px;">
+              <a href="{publicLink}"
+                 style="background:#8B5E3C;color:#ffffff;text-decoration:none;padding:14px 36px;border-radius:6px;font-size:15px;font-weight:600;display:inline-block;">
+                View Full Quotation →
+              </a>
+            </div>
+
+            <p style="margin:0 0 28px;font-size:12px;color:#aaa;text-align:center;">
+              If the button doesn't work, copy this link:<br>
+              <a href="{publicLink}" style="color:#8B5E3C;word-break:break-all;">{publicLink}</a>
+            </p>
+
+            <p style="margin:0;color:#999;font-size:13px;text-align:center;line-height:1.6;">
+              Questions? We're happy to help.<br>
+              <strong style="color:#8B5E3C;">Accounts Team · Wooden Houses Kenya</strong>
+            </p>
+            """;
+
+        var html = QuoteEmailLayout(quoteContent, frontendUrl);
 
         await emailService.SendQuoteToCustomerAsync(
             quote.CustomerEmail, quote.CustomerName, quote.QuoteNumber, html);
@@ -171,5 +187,64 @@ public class AdminQuotesController(AppDbContext db, IEmailService emailService, 
         db.Quotes.Remove(quote);
         await db.SaveChangesAsync();
         return NoContent();
+    }
+
+    private static string QuoteEmailLayout(string content, string siteUrl)
+    {
+        const string LogoUrl = "https://woodenhouseskenya.com/woodenhouse-logo.jpg";
+        return $"""
+            <!DOCTYPE html>
+            <html>
+            <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+            <body style="margin:0;padding:0;background-color:#F5F0EB;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#F5F0EB">
+                <tr>
+                  <td align="center" style="padding:40px 16px;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;">
+                      <tr>
+                        <td align="center" style="padding-bottom:20px;">
+                          <a href="{siteUrl}" style="text-decoration:none;">
+                            <img src="{LogoUrl}" alt="Wooden Houses Kenya" width="72" height="72"
+                                 style="border-radius:12px;display:block;border:3px solid #C49A6C;">
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+                           style="max-width:600px;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10);">
+                      <tr>
+                        <td align="center" bgcolor="#8B5E3C" style="background-color:#8B5E3C;padding:24px 40px;">
+                          <p style="margin:0;color:#ffffff;font-size:20px;font-weight:700;">Wooden Houses Kenya</p>
+                          <p style="margin:6px 0 0;color:#C49A6C;font-size:13px;">Premium Wooden Construction</p>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td align="center" style="padding:40px 40px 32px;">
+                          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                            <tr><td>{content}</td></tr>
+                          </table>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td bgcolor="#FAF7F4" align="center" style="background-color:#FAF7F4;padding:24px 40px;border-top:1px solid #EAE0D5;">
+                          <p style="margin:0 0 6px;color:#8B5E3C;font-weight:700;font-size:13px;">Wooden Houses Kenya</p>
+                          <p style="margin:0 0 4px;font-size:12px;color:#999999;">Naivasha, Kenya</p>
+                          <p style="margin:0 0 8px;font-size:12px;">
+                            <a href="tel:+254716111187" style="color:#8B5E3C;text-decoration:none;">+254 716 111 187</a>
+                            &nbsp;&middot;&nbsp;
+                            <a href="mailto:info@woodenhouseskenya.com" style="color:#8B5E3C;text-decoration:none;">info@woodenhouseskenya.com</a>
+                          </p>
+                          <p style="margin:0;font-size:11px;">
+                            <a href="{siteUrl}" style="color:#C49A6C;text-decoration:none;">woodenhouseskenya.com</a>
+                          </p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </body>
+            </html>
+            """;
     }
 }

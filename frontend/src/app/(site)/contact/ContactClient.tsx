@@ -323,10 +323,7 @@ export default function ContactClient() {
                   </div>
 
                   {/* Newsletter */}
-                  <div
-                    className="flex items-start gap-3 p-3 rounded-lg border-2 border-gray-100 hover:border-[#8B5E3C] transition-colors cursor-pointer"
-                    onClick={() => setFormData(prev => ({ ...prev, newsletter: !prev.newsletter }))}
-                  >
+                  <div className="flex items-start gap-3 p-3 rounded-lg border-2 border-gray-100 hover:border-[#8B5E3C] transition-colors">
                     <Checkbox
                       id="newsletter"
                       checked={formData.newsletter}
@@ -334,16 +331,15 @@ export default function ContactClient() {
                         setFormData(prev => ({ ...prev, newsletter: checked === true }))
                       }
                       className="mt-0.5 shrink-0"
-                      style={{ accentColor: "#8B5E3C" }}
                     />
-                    <div className="select-none">
+                    <label htmlFor="newsletter" className="cursor-pointer select-none">
                       <p className="text-sm font-medium text-gray-800">
                         Subscribe to our newsletter
                       </p>
                       <p className="text-xs text-gray-500 mt-0.5">
                         Get updates on new projects, offers, and wooden house tips
                       </p>
-                    </div>
+                    </label>
                   </div>
 
                   {/* Honeypot */}

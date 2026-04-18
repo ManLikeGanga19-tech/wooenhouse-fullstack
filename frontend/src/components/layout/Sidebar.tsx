@@ -12,7 +12,8 @@ import {
     FolderOpen,
     Wrench,
     BookOpen,
-    LogOut
+    LogOut,
+    Inbox,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,7 @@ const navigation = [
     { name: "Projects",  href: "/dashboard/projects",   icon: FolderOpen      },
     { name: "Services",  href: "/dashboard/services",   icon: Wrench          },
     { name: "Blog",      href: "/dashboard/blog",       icon: BookOpen        },
+    { name: "Emails",    href: "/dashboard/emails",     icon: Inbox           },
     { name: "Settings",  href: "/dashboard/settings",   icon: Settings        },
 ];
 

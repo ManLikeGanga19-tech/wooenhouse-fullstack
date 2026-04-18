@@ -169,6 +169,13 @@ export const api = {
       delete:   (id: string) =>
         apiClient.delete(`/api/admin/blog/${id}`),
     },
+
+    emailLogs: {
+      getAll:  (params?: { status?: string; type?: string; page?: number; pageSize?: number }) =>
+        apiClient.get<EmailLogResponse>("/api/admin/email-logs", { params }),
+      getStats: () =>
+        apiClient.get<EmailLogStats>("/api/admin/email-logs/stats"),
+    },
   },
 
   // Public blog
@@ -369,4 +376,29 @@ export interface BlogListResponse {
   page:  number;
   limit: number;
   posts: Omit<BlogPost, "content">[];
+}
+
+export interface EmailLog {
+  id:           string;
+  type:         "contact_alert" | "auto_reply" | "quote" | "newsletter";
+  fromAddress:  string;
+  toAddress:    string;
+  subject:      string;
+  status:       "sent" | "failed";
+  errorMessage?: string;
+  sentAt:       string;
+}
+
+export interface EmailLogResponse {
+  total:    number;
+  page:     number;
+  pageSize: number;
+  items:    EmailLog[];
+}
+
+export interface EmailLogStats {
+  sent:   number;
+  failed: number;
+  today:  number;
+  total:  number;
 }

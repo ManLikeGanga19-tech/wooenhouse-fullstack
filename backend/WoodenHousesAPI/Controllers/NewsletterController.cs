@@ -12,7 +12,7 @@ namespace WoodenHousesAPI.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/newsletter")]
-public class NewsletterController(AppDbContext db, IRecaptchaService recaptcha) : ControllerBase
+public class NewsletterController(AppDbContext db, IRecaptchaService recaptcha, IEmailService emailService) : ControllerBase
 {
     [HttpPost("subscribe")]
     public async Task<IActionResult> Subscribe([FromBody] SubscribeRequest request)
@@ -28,6 +28,7 @@ public class NewsletterController(AppDbContext db, IRecaptchaService recaptcha) 
             existing.Status         = "active";
             existing.UnsubscribedAt = null;
             await db.SaveChangesAsync();
+            _ = emailService.SendNewsletterWelcomeAsync(existing.Email, existing.Name);
             return Ok(new { message = "Welcome back! You have been re-subscribed." });
         }
 
@@ -44,16 +45,23 @@ public class NewsletterController(AppDbContext db, IRecaptchaService recaptcha) 
             }
         }
 
-        db.NewsletterSubscribers.Add(new NewsletterSubscriber
+        var subscriber = new NewsletterSubscriber
         {
             Email      = request.Email,
             Name       = request.Name,
             Source     = request.Source ?? "footer",
             IsSpam     = isSpam,
             SpamReason = spamReason,
-        });
-
+        };
+        db.NewsletterSubscribers.Add(subscriber);
         await db.SaveChangesAsync();
+
+        if (!isSpam)
+        {
+            _ = emailService.SendNewsletterWelcomeAsync(subscriber.Email, subscriber.Name);
+            _ = emailService.SendNewsletterSubscriptionAlertAsync(subscriber.Email, subscriber.Name);
+        }
+
         return Ok(new { message = "Thank you for subscribing!" });
     }
 

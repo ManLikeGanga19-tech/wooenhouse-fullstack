@@ -14,6 +14,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Service>               Services               => Set<Service>();
     public DbSet<SiteSetting>           SiteSettings           => Set<SiteSetting>();
     public DbSet<BlogPost>              BlogPosts              => Set<BlogPost>();
+    public DbSet<EmailLog>              EmailLogs              => Set<EmailLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -110,6 +111,14 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(b => b.ReadTimeMinutes).HasDefaultValue(5);
             e.Property(b => b.CreatedAt).HasDefaultValueSql("NOW()");
             e.Property(b => b.UpdatedAt).HasDefaultValueSql("NOW()");
+        });
+
+        // EmailLog
+        modelBuilder.Entity<EmailLog>(e =>
+        {
+            e.HasKey(l => l.Id);
+            e.Property(l => l.Status).HasDefaultValue("sent");
+            e.Property(l => l.SentAt).HasDefaultValueSql("NOW()");
         });
     }
 }
