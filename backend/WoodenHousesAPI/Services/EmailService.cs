@@ -32,7 +32,10 @@ public class EmailService(ResendClient resend, IConfiguration config, ILogger<Em
         };
         msg.To.Add(toEmail);
         if (replyTo is not null)
+        {
+            msg.ReplyTo = new EmailAddressList();
             msg.ReplyTo.Add(replyTo);
+        }
         return msg;
     }
 
