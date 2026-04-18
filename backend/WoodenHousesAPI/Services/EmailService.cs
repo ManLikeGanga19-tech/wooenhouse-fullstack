@@ -68,6 +68,8 @@ public class EmailService(IConfiguration config, ILogger<EmailService> logger) :
     public async Task SendContactNotificationAsync(string fromName, string fromEmail, string? message)
     {
         var adminAddress = config["Email:AdminNotifyAddress"] ?? "director@woodenhouseskenya.com";
+        logger.LogInformation("[EMAIL] Sending contact alert → {Admin} via {Host}:{Port}",
+            adminAddress, config["Email:Host"], config["Email:Port"]);
 
         var html = $"""
             <div style="font-family:sans-serif;max-width:600px">
@@ -78,20 +80,27 @@ public class EmailService(IConfiguration config, ILogger<EmailService> logger) :
               <blockquote style="border-left:4px solid #C49A6C;margin:0;padding:8px 16px;color:#555">
                 {(message ?? "<em>No message provided.</em>")}
               </blockquote>
-              <p style="margin-top:24px;font-size:12px;color:#999">
-                Wooden Houses Kenya · Admin Alert
-              </p>
+              <p style="margin-top:24px;font-size:12px;color:#999">Wooden Houses Kenya · Admin Alert</p>
             </div>
             """;
 
         var email = BuildMessage(InfoAddress, DisplayName, adminAddress, "Admin", $"New Enquiry: {fromName}", html);
-        try   { await SendAsync(email); }
-        catch (Exception ex) { logger.LogError(ex, "Failed to send contact notification"); }
+        try
+        {
+            await SendAsync(email);
+            logger.LogInformation("[EMAIL] Contact alert sent OK → {Admin}", adminAddress);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "[EMAIL] FAILED contact alert → {Admin} | {Error}", adminAddress, ex.Message);
+        }
     }
 
     /// <summary>Auto-reply to the client immediately after they submit the contact form.</summary>
     public async Task SendContactAutoReplyAsync(string toEmail, string toName)
     {
+        logger.LogInformation("[EMAIL] Sending auto-reply → {Client}", toEmail);
+
         var html = $"""
             <div style="font-family:sans-serif;max-width:600px">
               <h2 style="color:#8B5E3C">Thank you, {toName}!</h2>
@@ -106,9 +115,7 @@ public class EmailService(IConfiguration config, ILogger<EmailService> logger) :
               <p style="margin-top:32px;font-size:13px;color:#555">
                 Warm regards,<br>
                 <strong>Sales Team · Wooden Houses Kenya</strong><br>
-                <a href="mailto:sales@woodenhouseskenya.com" style="color:#8B5E3C">
-                  sales@woodenhouseskenya.com
-                </a>
+                <a href="mailto:sales@woodenhouseskenya.com" style="color:#8B5E3C">sales@woodenhouseskenya.com</a>
               </p>
             </div>
             """;
@@ -117,26 +124,40 @@ public class EmailService(IConfiguration config, ILogger<EmailService> logger) :
             SalesAddress, $"{DisplayName} · Sales",
             toEmail, toName,
             "We received your enquiry — Wooden Houses Kenya",
-            html,
-            replyTo: SalesAddress);
+            html, replyTo: SalesAddress);
 
-        try   { await SendAsync(email); }
-        catch (Exception ex) { logger.LogError(ex, "Failed to send contact auto-reply to {Email}", toEmail); }
+        try
+        {
+            await SendAsync(email);
+            logger.LogInformation("[EMAIL] Auto-reply sent OK → {Client}", toEmail);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "[EMAIL] FAILED auto-reply → {Client} | {Error}", toEmail, ex.Message);
+        }
     }
 
     /// <summary>Sends a quote PDF/HTML to the client. Comes from accounts@.</summary>
     public async Task SendQuoteToCustomerAsync(
         string toEmail, string customerName, string quoteNumber, string quoteHtml)
     {
+        logger.LogInformation("[EMAIL] Sending quote {Quote} → {Client}", quoteNumber, toEmail);
+
         var email = BuildMessage(
             AccountsAddress, $"{DisplayName} · Accounts",
             toEmail, customerName,
             $"Your Quote {quoteNumber} — Wooden Houses Kenya",
-            quoteHtml,
-            replyTo: SalesAddress);
+            quoteHtml, replyTo: SalesAddress);
 
-        try   { await SendAsync(email); }
-        catch (Exception ex) { logger.LogError(ex, "Failed to send quote to {Email}", toEmail); }
+        try
+        {
+            await SendAsync(email);
+            logger.LogInformation("[EMAIL] Quote {Quote} sent OK → {Client}", quoteNumber, toEmail);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "[EMAIL] FAILED quote {Quote} → {Client} | {Error}", quoteNumber, toEmail, ex.Message);
+        }
     }
 
     /// <summary>Bulk newsletter. Comes from info@.</summary>
@@ -147,7 +168,7 @@ public class EmailService(IConfiguration config, ILogger<EmailService> logger) :
         {
             var email = BuildMessage(InfoAddress, DisplayName, recipient, "", subject, htmlBody);
             try   { await SendAsync(email); }
-            catch (Exception ex) { logger.LogError(ex, "Failed to send newsletter to {Email}", recipient); }
+            catch (Exception ex) { logger.LogError(ex, "[EMAIL] FAILED newsletter → {Email} | {Error}", recipient, ex.Message); }
         }
     }
 }
