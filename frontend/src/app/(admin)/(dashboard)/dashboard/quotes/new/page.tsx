@@ -2,17 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Save, Send } from "lucide-react";
+import { ArrowLeft, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api } from "@/lib/api/client";
 import { toast } from "sonner";
-
-type DiscountType = "fixed" | "percent";
+import LineItemsEditor, { type DraftLineItem, newLineItem } from "@/components/quotes/LineItemsEditor";
 
 export default function CreateQuotePage() {
     const router       = useRouter();
@@ -21,8 +19,10 @@ export default function CreateQuotePage() {
     const contactId    = searchParams.get("contactId");
 
     const [saving,        setSaving]        = useState(false);
-    const [discountType,  setDiscountType]  = useState<DiscountType>("fixed");
-    const [discountInput, setDiscountInput] = useState<string>("");
+    const [lineItems,     setLineItems]     = useState<DraftLineItem[]>([newLineItem()]);
+    const [discountType,  setDiscountType]  = useState<"fixed" | "percent">("fixed");
+    const [discountInput, setDiscountInput] = useState(0);
+
     const [form, setForm] = useState({
         customerName:     "",
         customerEmail:    "",
@@ -32,7 +32,6 @@ export default function CreateQuotePage() {
         location:         "",
         placeOfSupply:    "Kenya",
         countryOfSupply:  "Kenya",
-        basePrice:        "" as string | number,
         paymentTerms:     "50% deposit upon signing. 50% on completion.",
         deliveryTimeline: "3-6 months from deposit",
         validityDays:     30 as string | number,
@@ -58,41 +57,48 @@ export default function CreateQuotePage() {
     const set = (key: string, value: unknown) =>
         setForm(prev => ({ ...prev, [key]: value }));
 
-    const numVal = (v: string | number) => typeof v === "string" ? (parseFloat(v) || 0) : v;
+    const numVal = (v: string | number) =>
+        typeof v === "string" ? (parseFloat(v) || 0) : v;
 
-    // Compute the KES discount to send to the API
     const computeDiscountKES = (): number => {
-        const raw = parseFloat(discountInput) || 0;
         if (discountType === "percent") {
-            return (numVal(form.basePrice) * raw) / 100;
+            const subtotal = lineItems.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+            return (subtotal * discountInput) / 100;
         }
-        return raw;
+        return discountInput;
     };
 
-    const handleSave = async (send = false) => {
+    const handleSave = async () => {
         if (!form.customerName || !form.customerEmail) {
             toast.error("Customer name and email are required");
+            return;
+        }
+        if (lineItems.some(i => !i.description.trim())) {
+            toast.error("All line items need a description");
             return;
         }
         setSaving(true);
         try {
             const { data } = await api.admin.quotes.create({
                 ...form,
-                basePrice:  numVal(form.basePrice),
-                discount:   computeDiscountKES(),
+                basePrice:    0,
+                discount:     computeDiscountKES(),
                 validityDays: numVal(form.validityDays),
-                contactId:  contactId ?? undefined,
-                lineItems:  [],
+                contactId:    contactId ?? undefined,
+                lineItems:    lineItems.map(i => ({
+                    id:          i.id,
+                    description: i.description,
+                    quantity:    i.quantity,
+                    unitPrice:   i.unitPrice,
+                    total:       i.quantity * i.unitPrice,
+                })),
             } as never);
-            if (send) {
-                await api.admin.quotes.send(data.id);
-                toast.success("Quote created and sent!");
-            } else {
-                toast.success("Quote saved as draft");
-            }
+            toast.success("Quote saved as draft");
             router.push(qs ? `/dashboard/quotes/${data.id}?${qs}` : `/dashboard/quotes/${data.id}`);
         } catch (err) {
-            toast.error("Failed to create quote", { description: err instanceof Error ? err.message : undefined });
+            toast.error("Failed to create quote", {
+                description: err instanceof Error ? err.message : undefined,
+            });
         } finally {
             setSaving(false);
         }
@@ -103,23 +109,29 @@ export default function CreateQuotePage() {
             {/* Header */}
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
                 <div className="flex items-center gap-3">
-                    <Button variant="outline" size="icon" onClick={() => router.push(qs ? `/dashboard/quotes?${qs}` : "/dashboard/quotes")} className="border-2 shrink-0">
+                    <Button
+                        variant="outline" size="icon"
+                        onClick={() => router.push(qs ? `/dashboard/quotes?${qs}` : "/dashboard/quotes")}
+                        className="border-2 shrink-0"
+                    >
                         <ArrowLeft size={20} />
                     </Button>
                     <div>
                         <h1 className="text-xl font-bold" style={{ color: "#8B5E3C" }}>New Quote</h1>
+                        <p className="text-xs text-gray-500">Save as draft, then review and send from the quote page</p>
                     </div>
                 </div>
-                <div className="flex items-center gap-2 sm:ml-auto">
-                    <Button variant="outline" onClick={() => handleSave(false)} disabled={saving} className="border-2 flex-1 sm:flex-none">
-                        <Save size={16} className="mr-2" /> Save Draft
-                    </Button>
-                    <Button onClick={() => handleSave(true)} disabled={saving} className="text-white flex-1 sm:flex-none" style={{ backgroundColor: "#8B5E3C" }}>
-                        <Send size={16} className="mr-2" /> {saving ? "Saving..." : "Save & Send"}
-                    </Button>
-                </div>
+                <Button
+                    onClick={handleSave} disabled={saving}
+                    className="text-white sm:ml-auto"
+                    style={{ backgroundColor: "#8B5E3C" }}
+                >
+                    <Save size={16} className="mr-2" />
+                    {saving ? "Saving…" : "Save Draft"}
+                </Button>
             </div>
 
+            {/* Customer */}
             <div className="rounded-lg border-2 border-gray-200 bg-white p-4 sm:p-6 space-y-6">
                 <h3 className="font-semibold text-lg" style={{ color: "#8B5E3C" }}>Customer Information</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -140,10 +152,11 @@ export default function CreateQuotePage() {
                         <Input value={form.location} onChange={e => set("location", e.target.value)} className="border-2" placeholder="e.g. Nairobi, Naivasha" />
                     </div>
                 </div>
+            </div>
 
-                <Separator />
-
-                <h3 className="font-semibold text-lg" style={{ color: "#8B5E3C" }}>Project & Pricing</h3>
+            {/* Project */}
+            <div className="rounded-lg border-2 border-gray-200 bg-white p-4 sm:p-6 space-y-4">
+                <h3 className="font-semibold text-lg" style={{ color: "#8B5E3C" }}>Project Details</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                         <Label>House Type</Label>
@@ -155,63 +168,39 @@ export default function CreateQuotePage() {
                     </div>
                     <div className="space-y-2">
                         <Label>Place of Supply</Label>
-                        <Input value={form.placeOfSupply} onChange={e => set("placeOfSupply", e.target.value)} className="border-2" placeholder="e.g. Nairobi" />
+                        <Input value={form.placeOfSupply} onChange={e => set("placeOfSupply", e.target.value)} className="border-2" />
                     </div>
                     <div className="space-y-2">
                         <Label>Country of Supply</Label>
-                        <Input value={form.countryOfSupply} onChange={e => set("countryOfSupply", e.target.value)} className="border-2" placeholder="e.g. Kenya" />
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Base Price (KES)</Label>
-                        <Input
-                            type="number"
-                            inputMode="decimal"
-                            value={form.basePrice}
-                            placeholder="0"
-                            onChange={e => set("basePrice", e.target.value)}
-                            className="border-2"
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Discount</Label>
-                        <div className="flex gap-2">
-                            <Select value={discountType} onValueChange={v => setDiscountType(v as DiscountType)}>
-                                <SelectTrigger className="border-2 w-32 shrink-0">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="fixed">KES</SelectItem>
-                                    <SelectItem value="percent">%</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <Input
-                                type="number"
-                                inputMode="decimal"
-                                value={discountInput}
-                                placeholder={discountType === "percent" ? "0%" : "0"}
-                                onChange={e => setDiscountInput(e.target.value)}
-                                className="border-2"
-                            />
-                        </div>
-                        {discountType === "percent" && discountInput && (
-                            <p className="text-xs text-gray-500">
-                                = KES {((numVal(form.basePrice) * (parseFloat(discountInput) || 0)) / 100).toLocaleString("en-KE")}
-                            </p>
-                        )}
+                        <Input value={form.countryOfSupply} onChange={e => set("countryOfSupply", e.target.value)} className="border-2" />
                     </div>
                 </div>
+            </div>
 
-                <Separator />
+            {/* Line Items */}
+            <div className="rounded-lg border-2 border-gray-200 bg-white p-4 sm:p-6 space-y-4">
+                <div>
+                    <h3 className="font-semibold text-lg" style={{ color: "#8B5E3C" }}>Line Items</h3>
+                    <p className="text-sm text-gray-500 mt-0.5">Add each item, material, or service with its quantity and price.</p>
+                </div>
+                <LineItemsEditor
+                    items={lineItems}
+                    discountAmount={discountInput}
+                    discountType={discountType}
+                    onChange={setLineItems}
+                    onDiscountChange={(amount, type) => { setDiscountInput(amount); setDiscountType(type); }}
+                />
+            </div>
 
-                <h3 className="font-semibold text-lg" style={{ color: "#8B5E3C" }}>Terms & Notes</h3>
+            {/* Terms */}
+            <div className="rounded-lg border-2 border-gray-200 bg-white p-4 sm:p-6 space-y-4">
+                <h3 className="font-semibold text-lg" style={{ color: "#8B5E3C" }}>Terms &amp; Notes</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                         <Label>Validity (days)</Label>
                         <Input
-                            type="number"
-                            inputMode="numeric"
-                            value={form.validityDays}
-                            placeholder="30"
+                            type="number" inputMode="numeric"
+                            value={form.validityDays} placeholder="30"
                             onChange={e => set("validityDays", e.target.value)}
                             className="border-2"
                         />
@@ -226,9 +215,21 @@ export default function CreateQuotePage() {
                     </div>
                     <div className="space-y-2 sm:col-span-2">
                         <Label>Internal Notes</Label>
-                        <Textarea value={form.notes} onChange={e => set("notes", e.target.value)} rows={4} className="border-2 resize-none" placeholder="Any notes for internal reference..." />
+                        <Textarea value={form.notes} onChange={e => set("notes", e.target.value)} rows={3} className="border-2 resize-none" placeholder="Internal reference only — not shown on the quote" />
                     </div>
                 </div>
+            </div>
+
+            {/* Bottom save */}
+            <div className="flex justify-end pb-6">
+                <Button
+                    onClick={handleSave} disabled={saving}
+                    className="text-white px-8"
+                    style={{ backgroundColor: "#8B5E3C" }}
+                >
+                    <Save size={16} className="mr-2" />
+                    {saving ? "Saving…" : "Save Draft"}
+                </Button>
             </div>
         </div>
     );

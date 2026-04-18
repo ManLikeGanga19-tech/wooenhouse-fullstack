@@ -11,8 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { api, type Quote } from "@/lib/api/client";
 import { toast } from "sonner";
-
-type DiscountType = "fixed" | "percent";
+import LineItemsEditor, { type DraftLineItem } from "@/components/quotes/LineItemsEditor";
 
 export default function EditQuotePage() {
     const router       = useRouter();
@@ -24,16 +23,26 @@ export default function EditQuotePage() {
     const [loading,       setLoading]       = useState(true);
     const [saving,        setSaving]        = useState(false);
     const [form,          setForm]          = useState<Partial<Quote>>({});
-    const [discountType,  setDiscountType]  = useState<DiscountType>("fixed");
-    const [discountInput, setDiscountInput] = useState<string>("");
+    const [lineItems,     setLineItems]     = useState<DraftLineItem[]>([]);
+    const [discountType,  setDiscountType]  = useState<"fixed" | "percent">("fixed");
+    const [discountInput, setDiscountInput] = useState(0);
 
     useEffect(() => {
         api.admin.quotes.getById(id)
             .then(r => {
-                setQuote(r.data);
-                setForm(r.data);
-                // Pre-fill discount as fixed (existing KES amount)
-                setDiscountInput(r.data.discount > 0 ? String(r.data.discount) : "");
+                const q = r.data;
+                setQuote(q);
+                setForm(q);
+                setDiscountInput(q.discount > 0 ? q.discount : 0);
+                // Map existing line items to draft format
+                if (q.lineItems?.length) {
+                    setLineItems(q.lineItems.map(li => ({
+                        id:          li.id,
+                        description: li.description,
+                        quantity:    li.quantity,
+                        unitPrice:   li.unitPrice,
+                    })));
+                }
             })
             .catch(() => toast.error("Quote not found"))
             .finally(() => setLoading(false));
@@ -46,26 +55,39 @@ export default function EditQuotePage() {
         typeof v === "string" ? (parseFloat(v) || 0) : (v ?? 0);
 
     const computeDiscountKES = (): number => {
-        const raw = parseFloat(discountInput) || 0;
         if (discountType === "percent") {
-            return (numVal(form.basePrice) * raw) / 100;
+            const subtotal = lineItems.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+            return (subtotal * discountInput) / 100;
         }
-        return raw;
+        return discountInput;
     };
 
     const handleSave = async () => {
+        if (lineItems.some(i => !i.description.trim())) {
+            toast.error("All line items need a description");
+            return;
+        }
         setSaving(true);
         try {
             await api.admin.quotes.update(id, {
                 ...form,
-                basePrice:    numVal(form.basePrice),
+                basePrice:    0,
                 discount:     computeDiscountKES(),
                 validityDays: numVal(form.validityDays),
-            });
+                lineItems:    lineItems.map(i => ({
+                    id:          i.id,
+                    description: i.description,
+                    quantity:    i.quantity,
+                    unitPrice:   i.unitPrice,
+                    total:       i.quantity * i.unitPrice,
+                })),
+            } as never);
             toast.success("Quote updated");
             router.push(qs ? `/dashboard/quotes/${id}?${qs}` : `/dashboard/quotes/${id}`);
         } catch (err) {
-            toast.error("Failed to save", { description: err instanceof Error ? err.message : undefined });
+            toast.error("Failed to save", {
+                description: err instanceof Error ? err.message : undefined,
+            });
         } finally {
             setSaving(false);
         }
@@ -89,7 +111,11 @@ export default function EditQuotePage() {
             {/* Header */}
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
                 <div className="flex items-center gap-3">
-                    <Button variant="outline" size="icon" onClick={() => router.push(qs ? `/dashboard/quotes/${id}?${qs}` : `/dashboard/quotes/${id}`)} className="border-2 shrink-0">
+                    <Button
+                        variant="outline" size="icon"
+                        onClick={() => router.push(qs ? `/dashboard/quotes/${id}?${qs}` : `/dashboard/quotes/${id}`)}
+                        className="border-2 shrink-0"
+                    >
                         <ArrowLeft size={20} />
                     </Button>
                     <div>
@@ -97,11 +123,17 @@ export default function EditQuotePage() {
                         <p className="text-sm text-gray-500">#{quote.quoteNumber}</p>
                     </div>
                 </div>
-                <Button onClick={handleSave} disabled={saving} className="text-white sm:ml-auto" style={{ backgroundColor: "#8B5E3C" }}>
-                    <Save size={16} className="mr-2" /> {saving ? "Saving..." : "Save Changes"}
+                <Button
+                    onClick={handleSave} disabled={saving}
+                    className="text-white sm:ml-auto"
+                    style={{ backgroundColor: "#8B5E3C" }}
+                >
+                    <Save size={16} className="mr-2" />
+                    {saving ? "Saving…" : "Save Changes"}
                 </Button>
             </div>
 
+            {/* Customer */}
             <div className="rounded-lg border-2 border-gray-200 bg-white p-4 sm:p-6 space-y-6">
                 <h3 className="font-semibold text-lg" style={{ color: "#8B5E3C" }}>Customer Information</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -122,10 +154,11 @@ export default function EditQuotePage() {
                         <Input value={form.location ?? ""} onChange={e => set("location", e.target.value)} className="border-2" />
                     </div>
                 </div>
+            </div>
 
-                <Separator />
-
-                <h3 className="font-semibold text-lg" style={{ color: "#8B5E3C" }}>Project & Pricing</h3>
+            {/* Project */}
+            <div className="rounded-lg border-2 border-gray-200 bg-white p-4 sm:p-6 space-y-4">
+                <h3 className="font-semibold text-lg" style={{ color: "#8B5E3C" }}>Project Details</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                         <Label>House Type</Label>
@@ -137,61 +170,38 @@ export default function EditQuotePage() {
                     </div>
                     <div className="space-y-2">
                         <Label>Place of Supply</Label>
-                        <Input value={form.placeOfSupply ?? ""} onChange={e => set("placeOfSupply", e.target.value)} className="border-2" placeholder="e.g. Nairobi" />
+                        <Input value={form.placeOfSupply ?? ""} onChange={e => set("placeOfSupply", e.target.value)} className="border-2" />
                     </div>
                     <div className="space-y-2">
                         <Label>Country of Supply</Label>
-                        <Input value={form.countryOfSupply ?? ""} onChange={e => set("countryOfSupply", e.target.value)} className="border-2" placeholder="e.g. Kenya" />
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Base Price (KES)</Label>
-                        <Input
-                            type="number"
-                            inputMode="decimal"
-                            value={form.basePrice ?? ""}
-                            placeholder="0"
-                            onChange={e => set("basePrice", e.target.value === "" ? 0 : parseFloat(e.target.value) || 0)}
-                            className="border-2"
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Discount</Label>
-                        <div className="flex gap-2">
-                            <Select value={discountType} onValueChange={v => setDiscountType(v as DiscountType)}>
-                                <SelectTrigger className="border-2 w-28 shrink-0">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="fixed">KES</SelectItem>
-                                    <SelectItem value="percent">%</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <Input
-                                type="number"
-                                inputMode="decimal"
-                                value={discountInput}
-                                placeholder={discountType === "percent" ? "0%" : "0"}
-                                onChange={e => setDiscountInput(e.target.value)}
-                                className="border-2"
-                            />
-                        </div>
-                        {discountType === "percent" && discountInput && (
-                            <p className="text-xs text-gray-500">
-                                = KES {((numVal(form.basePrice) * (parseFloat(discountInput) || 0)) / 100).toLocaleString("en-KE")}
-                            </p>
-                        )}
+                        <Input value={form.countryOfSupply ?? ""} onChange={e => set("countryOfSupply", e.target.value)} className="border-2" />
                     </div>
                 </div>
+            </div>
 
-                <Separator />
+            {/* Line Items */}
+            <div className="rounded-lg border-2 border-gray-200 bg-white p-4 sm:p-6 space-y-4">
+                <div>
+                    <h3 className="font-semibold text-lg" style={{ color: "#8B5E3C" }}>Line Items</h3>
+                    <p className="text-sm text-gray-500 mt-0.5">Add, edit, or remove items. Totals update automatically.</p>
+                </div>
+                <LineItemsEditor
+                    items={lineItems}
+                    discountAmount={discountInput}
+                    discountType={discountType}
+                    onChange={setLineItems}
+                    onDiscountChange={(amount, type) => { setDiscountInput(amount); setDiscountType(type); }}
+                />
+            </div>
 
-                <h3 className="font-semibold text-lg" style={{ color: "#8B5E3C" }}>Terms</h3>
+            {/* Terms */}
+            <div className="rounded-lg border-2 border-gray-200 bg-white p-4 sm:p-6 space-y-4">
+                <h3 className="font-semibold text-lg" style={{ color: "#8B5E3C" }}>Terms &amp; Notes</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                         <Label>Validity (days)</Label>
                         <Input
-                            type="number"
-                            inputMode="numeric"
+                            type="number" inputMode="numeric"
                             value={form.validityDays ?? ""}
                             placeholder="30"
                             onChange={e => set("validityDays", e.target.value === "" ? 30 : parseInt(e.target.value) || 30)}
@@ -204,7 +214,9 @@ export default function EditQuotePage() {
                             <SelectTrigger className="border-2"><SelectValue /></SelectTrigger>
                             <SelectContent>
                                 {["draft","sent","viewed","accepted","rejected","expired"].map(v => (
-                                    <SelectItem key={v} value={v}>{v.charAt(0).toUpperCase() + v.slice(1)}</SelectItem>
+                                    <SelectItem key={v} value={v}>
+                                        {v.charAt(0).toUpperCase() + v.slice(1)}
+                                    </SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
@@ -219,9 +231,21 @@ export default function EditQuotePage() {
                     </div>
                     <div className="space-y-2 sm:col-span-2">
                         <Label>Notes</Label>
-                        <Textarea value={form.notes ?? ""} onChange={e => set("notes", e.target.value)} rows={4} className="border-2 resize-none" />
+                        <Textarea value={form.notes ?? ""} onChange={e => set("notes", e.target.value)} rows={3} className="border-2 resize-none" />
                     </div>
                 </div>
+            </div>
+
+            {/* Bottom save */}
+            <div className="flex justify-end pb-6">
+                <Button
+                    onClick={handleSave} disabled={saving}
+                    className="text-white px-8"
+                    style={{ backgroundColor: "#8B5E3C" }}
+                >
+                    <Save size={16} className="mr-2" />
+                    {saving ? "Saving…" : "Save Changes"}
+                </Button>
             </div>
         </div>
     );
