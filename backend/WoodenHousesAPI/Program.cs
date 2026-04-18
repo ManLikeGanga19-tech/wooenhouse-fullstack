@@ -6,13 +6,15 @@ using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Resend;
 using Serilog;
+using SerilogLog = Serilog.Log;
 using WoodenHousesAPI.Data;
 using WoodenHousesAPI.Middleware;
 using WoodenHousesAPI.Services;
 
 // ─── Serilog early init (captures startup errors too) ────────────────────────
-Log.Logger = new LoggerConfiguration()
+SerilogLog.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .CreateBootstrapLogger();
 
@@ -149,6 +151,14 @@ try
     builder.Services.AddScoped<IAuthService, AuthService>();
     builder.Services.AddScoped<IEmailService, EmailService>();
     builder.Services.AddHttpClient<IRecaptchaService, RecaptchaService>();
+
+    // Resend — transactional email via HTTPS (replaces SMTP which is blocked on Render)
+    builder.Services.AddOptions();
+    builder.Services.AddHttpClient<ResendClient>();
+    builder.Services.Configure<ResendClientOptions>(o =>
+    {
+        o.ApiToken = builder.Configuration["Resend:ApiKey"] ?? string.Empty;
+    });
 
     // Use Cloudinary in production (Render has an ephemeral filesystem).
     // Fall back to local disk storage when Cloudinary is not configured (dev).
@@ -297,18 +307,18 @@ try
     // 13. Controllers
     app.MapControllers();
 
-    Log.Information("Wooden Houses Kenya API starting on {Environment}",
+    SerilogLog.Information("Wooden Houses Kenya API starting on {Environment}",
         app.Environment.EnvironmentName);
 
     await app.RunAsync();
 }
 catch (Exception ex) when (ex is not HostAbortedException)
 {
-    Log.Fatal(ex, "Application startup failed.");
+    SerilogLog.Fatal(ex, "Application startup failed.");
 }
 finally
 {
-    Log.CloseAndFlush();
+    SerilogLog.CloseAndFlush();
 }
 
 // Required so WebApplicationFactory<Program> works in integration tests

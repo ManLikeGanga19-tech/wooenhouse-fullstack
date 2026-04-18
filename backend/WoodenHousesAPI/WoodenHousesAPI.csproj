@@ -25,6 +25,7 @@
     <!-- Email -->
     <PackageReference Include="MailKit" Version="4.11.0" />
     <PackageReference Include="MimeKit" Version="4.11.0" />
+    <PackageReference Include="Resend" Version="0.4.0" />
 
     <!-- Swagger -->
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.8.1" />
