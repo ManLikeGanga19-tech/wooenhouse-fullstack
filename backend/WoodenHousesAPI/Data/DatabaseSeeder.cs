@@ -24,20 +24,24 @@ public static class DatabaseSeeder
     private static async Task SeedAdminUserAsync(
         AppDbContext db, IConfiguration config, ILogger logger)
     {
-        if (db.AdminUsers.Any())
+        var email    = config["Seed:AdminEmail"]    ?? "director@woodenhouseskenya.com";
+        var name     = config["Seed:AdminName"]     ?? "Eric Abuto";
+        var password = config["Seed:AdminPassword"] ?? throw new InvalidOperationException(
+            "Seed:AdminPassword must be set in configuration.");
+
+        var hash     = BCrypt.Net.BCrypt.HashPassword(password, workFactor: 12);
+        var existing = db.AdminUsers.FirstOrDefault();
+
+        if (existing is not null)
         {
-            logger.LogInformation("Admin users already exist — skipping seed.");
+            // Always sync email, name and password from config so a redeploy updates credentials
+            existing.Email        = email;
+            existing.Name         = name;
+            existing.PasswordHash = hash;
+            await db.SaveChangesAsync();
+            logger.LogInformation("Admin user updated: {Email}", email);
             return;
         }
-
-        var email    = config["Seed:AdminEmail"]    ?? "admin@woodenhouseskenya.com";
-        var name     = config["Seed:AdminName"]     ?? "Site Administrator";
-        var password = config["Seed:AdminPassword"] ?? throw new InvalidOperationException(
-            "Seed:AdminPassword must be set in configuration. " +
-            "Add it to appsettings.json or environment variables.");
-
-        // Use bcrypt cost factor 12 — good balance of security vs speed in 2024
-        var hash = BCrypt.Net.BCrypt.HashPassword(password, workFactor: 12);
 
         db.AdminUsers.Add(new AdminUser
         {
@@ -46,9 +50,8 @@ public static class DatabaseSeeder
             PasswordHash = hash,
             Role         = "superadmin",
         });
-
         await db.SaveChangesAsync();
-        logger.LogInformation("Seeded admin user: {Email}", email);
+        logger.LogInformation("Admin user seeded: {Email}", email);
     }
 
     // ─── Site Settings ────────────────────────────────────────────────────────

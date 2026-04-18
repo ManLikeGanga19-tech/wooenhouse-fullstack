@@ -16,8 +16,7 @@ namespace WoodenHousesAPI.Controllers;
 public class ContactsController(
     AppDbContext db,
     IEmailService emailService,
-    IRecaptchaService recaptcha,
-    IConfiguration config) : ControllerBase
+    IRecaptchaService recaptcha) : ControllerBase
 {
     [HttpPost]
     [EnableRateLimiting("strict")]
@@ -81,12 +80,11 @@ public class ContactsController(
             }
         }
 
-        // 5. Notify admin only for real submissions (fire-and-forget)
+        // 5. Emails for real submissions only (fire-and-forget)
         if (!isSpam)
         {
-            var adminEmail = config["Email:FromAddress"] ?? "info@woodenhouseskenya.com";
-            _ = emailService.SendContactNotificationAsync(
-                adminEmail, request.Name, request.Email, request.Message);
+            _ = emailService.SendContactNotificationAsync(request.Name, request.Email, request.Message);
+            _ = emailService.SendContactAutoReplyAsync(request.Email, request.Name);
         }
 
         return Ok(new { message = "Thank you! We will be in touch soon." });

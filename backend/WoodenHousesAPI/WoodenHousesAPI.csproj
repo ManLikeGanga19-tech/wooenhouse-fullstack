@@ -23,8 +23,8 @@
     <PackageReference Include="FluentValidation.AspNetCore" Version="11.3.0" />
 
     <!-- Email -->
-    <PackageReference Include="MailKit" Version="4.8.0" />
-    <PackageReference Include="MimeKit" Version="4.8.0" />
+    <PackageReference Include="MailKit" Version="4.11.0" />
+    <PackageReference Include="MimeKit" Version="4.11.0" />
 
     <!-- Swagger -->
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.8.1" />
