@@ -8,4 +8,5 @@ public interface IEmailService
     Task SendNewsletterAsync(IEnumerable<string> recipients, string subject, string htmlBody);
     Task SendNewsletterWelcomeAsync(string toEmail, string? name);
     Task SendNewsletterSubscriptionAlertAsync(string email, string? name);
+    Task SendNewsletterBroadcastAsync(IEnumerable<string> recipients, string subject, string content);
 }

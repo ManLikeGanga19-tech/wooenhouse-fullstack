@@ -57,10 +57,7 @@ public class NewsletterController(AppDbContext db, IRecaptchaService recaptcha, 
         await db.SaveChangesAsync();
 
         if (!isSpam)
-        {
             _ = emailService.SendNewsletterWelcomeAsync(subscriber.Email, subscriber.Name);
-            _ = emailService.SendNewsletterSubscriptionAlertAsync(subscriber.Email, subscriber.Name);
-        }
 
         return Ok(new { message = "Thank you for subscribing!" });
     }

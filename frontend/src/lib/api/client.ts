@@ -117,12 +117,16 @@ export const api = {
     },
 
     newsletter: {
-      getAll:    (params?: { status?: string; showSpam?: boolean }) =>
+      getAll:      (params?: { status?: string; showSpam?: boolean }) =>
         apiClient.get<NewsletterSubscriber[]>("/api/admin/newsletter", { params }),
-      markSpam:  (id: string, isSpam: boolean) =>
+      markSpam:    (id: string, isSpam: boolean) =>
         apiClient.patch<NewsletterSubscriber>(`/api/admin/newsletter/${id}`, { isSpam }),
-      delete:    (id: string) =>
+      delete:      (id: string) =>
         apiClient.delete(`/api/admin/newsletter/${id}`),
+      activeCount: () =>
+        apiClient.get<{ count: number }>("/api/admin/newsletter/active-count"),
+      send:        (data: { subject: string; content: string }) =>
+        apiClient.post<{ message: string; count: number }>("/api/admin/newsletter/send", data),
     },
 
     projects: {

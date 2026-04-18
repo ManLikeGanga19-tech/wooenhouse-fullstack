@@ -262,6 +262,26 @@ public class EmailService(
         }
     }
 
+    public async Task SendNewsletterBroadcastAsync(
+        IEnumerable<string> recipients, string subject, string content)
+    {
+        // Convert plain text to HTML paragraphs (double newline = new paragraph)
+        var paragraphs = content
+            .Split(new[] { "\r\n\r\n", "\n\n" }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(p =>
+                $"<p style=\"margin:0 0 16px;font-size:15px;color:#444;line-height:1.7;\">{p.Trim().Replace("\r\n", "<br>").Replace("\n", "<br>")}</p>");
+
+        var innerHtml = string.Join("", paragraphs);
+        var htmlBody  = Layout(innerHtml);
+
+        foreach (var recipient in recipients)
+        {
+            await SendAndLog(
+                Build(InfoAddress, DisplayName, recipient, subject, htmlBody),
+                "newsletter", InfoAddress, recipient);
+        }
+    }
+
     public async Task SendNewsletterWelcomeAsync(string toEmail, string? name)
     {
         logger.LogInformation("[EMAIL] Newsletter welcome → {Email}", toEmail);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useCallback } from "react";
-import { Mail, Users, UserCheck, UserX, ShieldAlert, RefreshCw } from "lucide-react";
+import { Mail, Users, UserCheck, UserX, ShieldAlert, RefreshCw, Send } from "lucide-react";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import SearchBar from "@/components/common/SearchBar";
 import ExportMenu from "@/components/common/ExportMenu";
@@ -11,7 +11,13 @@ import { exportNewsletterToCSV } from "@/lib/utils/exporters";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { X } from "lucide-react";
+
+const COMPOSE_EMPTY = { subject: "", content: "" };
 
 export default function NewsletterPage() {
     const [subscribers,   setSubscribers]   = useState<NewsletterSubscriber[]>([]);
@@ -20,6 +26,9 @@ export default function NewsletterPage() {
     const [statusFilter,  setStatusFilter]  = useState("all");
     const [sourceFilter,  setSourceFilter]  = useState("all");
     const [showSpam,      setShowSpam]      = useState(false);
+    const [composeOpen,   setComposeOpen]   = useState(false);
+    const [compose,       setCompose]       = useState(COMPOSE_EMPTY);
+    const [sending,       setSending]       = useState(false);
 
     const load = useCallback((spam = showSpam) => {
         setLoading(true);
@@ -64,6 +73,25 @@ export default function NewsletterPage() {
     const hasActiveFilters = statusFilter !== "all" || sourceFilter !== "all";
     const active = filtered.filter(s => s.status === "active").length;
     const unsub  = filtered.filter(s => s.status === "unsubscribed").length;
+    const activeRecipients = subscribers.filter(s => s.status === "active" && !s.isSpam).length;
+
+    const handleSend = async () => {
+        if (!compose.subject.trim() || !compose.content.trim()) {
+            toast.error("Subject and content are required.");
+            return;
+        }
+        setSending(true);
+        try {
+            const res = await api.admin.newsletter.send(compose);
+            toast.success(res.data.message);
+            setComposeOpen(false);
+            setCompose(COMPOSE_EMPTY);
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Failed to send newsletter.");
+        } finally {
+            setSending(false);
+        }
+    };
 
     return (
         <div className="space-y-6">
@@ -86,6 +114,14 @@ export default function NewsletterPage() {
                     <p className="text-gray-600 mt-1">Manage newsletter subscribers and mailing list</p>
                 </div>
                 <div className="flex items-center gap-3">
+                    <Button
+                        size="sm"
+                        onClick={() => setComposeOpen(true)}
+                        className="gap-1.5"
+                        style={{ background: "#8B5E3C", color: "white" }}
+                    >
+                        <Send size={14} /> Compose Newsletter
+                    </Button>
                     <Button
                         variant={showSpam ? "destructive" : "outline"}
                         size="sm"
@@ -166,6 +202,97 @@ export default function NewsletterPage() {
                     Showing {filtered.length} of {subscribers.length} {showSpam ? "spam" : ""} subscribers
                 </p>
             )}
+
+            {/* ── Compose Newsletter Sheet ─────────────────────────────────── */}
+            <Sheet open={composeOpen} onOpenChange={setComposeOpen}>
+                <SheetContent side="right" className="w-full sm:max-w-lg flex flex-col p-0">
+                    <SheetHeader className="px-6 py-4 border-b">
+                        <SheetTitle className="text-lg font-bold" style={{ color: "#8B5E3C" }}>
+                            Compose Newsletter
+                        </SheetTitle>
+                        <p className="text-sm text-gray-500">
+                            Sending to{" "}
+                            <span className="font-semibold" style={{ color: "#8B5E3C" }}>
+                                {activeRecipients} active subscriber{activeRecipients !== 1 ? "s" : ""}
+                            </span>
+                        </p>
+                    </SheetHeader>
+
+                    <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+                        {/* Subject */}
+                        <div className="space-y-1.5">
+                            <Label htmlFor="nl-subject" className="text-sm font-semibold">
+                                Subject <span className="text-red-500">*</span>
+                            </Label>
+                            <Input
+                                id="nl-subject"
+                                placeholder="e.g. New projects available — June 2026"
+                                value={compose.subject}
+                                onChange={e => setCompose(p => ({ ...p, subject: e.target.value }))}
+                                className="border-2 focus:border-[#8B5E3C]"
+                            />
+                        </div>
+
+                        {/* Body */}
+                        <div className="space-y-1.5">
+                            <Label htmlFor="nl-content" className="text-sm font-semibold">
+                                Content <span className="text-red-500">*</span>
+                            </Label>
+                            <p className="text-xs text-gray-400">
+                                Write your message. Press Enter twice to start a new paragraph.
+                            </p>
+                            <Textarea
+                                id="nl-content"
+                                placeholder={`Dear subscriber,\n\nWe have exciting news to share with you...\n\nBest regards,\nWooden Houses Kenya`}
+                                value={compose.content}
+                                onChange={e => setCompose(p => ({ ...p, content: e.target.value }))}
+                                rows={16}
+                                className="border-2 focus:border-[#8B5E3C] resize-none font-mono text-sm leading-relaxed"
+                            />
+                            <p className="text-xs text-gray-400 text-right">
+                                {compose.content.length} characters
+                            </p>
+                        </div>
+
+                        {/* Preview notice */}
+                        {compose.content && (
+                            <div className="rounded-lg border-2 border-[#C49A6C]/40 bg-[#FEF3C7]/40 p-3">
+                                <p className="text-xs text-amber-800 font-medium mb-1">Email preview</p>
+                                <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                                    {compose.content.length > 300
+                                        ? compose.content.slice(0, 300) + "…"
+                                        : compose.content}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Footer actions */}
+                    <div className="px-6 py-4 border-t flex gap-3">
+                        <Button
+                            variant="outline"
+                            className="flex-1 border-2"
+                            onClick={() => { setComposeOpen(false); setCompose(COMPOSE_EMPTY); }}
+                            disabled={sending}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            className="flex-1 gap-2"
+                            style={{ background: "#8B5E3C", color: "white" }}
+                            onClick={handleSend}
+                            disabled={sending || !compose.subject.trim() || !compose.content.trim()}
+                        >
+                            {sending ? (
+                                <RefreshCw size={14} className="animate-spin" />
+                            ) : (
+                                <Send size={14} />
+                            )}
+                            {sending ? "Sending…" : `Send to ${activeRecipients}`}
+                        </Button>
+                    </div>
+                </SheetContent>
+            </Sheet>
         </div>
     );
 }
