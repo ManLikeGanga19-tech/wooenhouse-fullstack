@@ -1,7 +1,7 @@
 export const FAQS = [
     {
         q: "How much does a wooden house cost in Kenya?",
-        a: "Our rate is KES 50,000 per square foot. A small garden office or cabin of around 200 sq ft starts at KES 10,000,000. A one-bedroom home of 400 sq ft comes to approximately KES 20,000,000. A two-bedroom home of 600 sq ft is around KES 30,000,000. Larger family homes of 1,000 to 1,200 sq ft range from KES 50,000,000 to KES 60,000,000. Final cost depends on design, site and finishes — contact us for a free quote.",
+        a: "Our rate is KES 4,200 per square feet. A small garden office or cabin of around 100 sq ft starts at KES 420,000. A one-bedroom home of 500 sq ft comes to approximately KES 2,100,000. A two-bedroom home of 750 sq ft is around KES 3,200,000. Larger family homes of 2,000 to 2,500 sq ft range from KES 8,000,000 to KES 10,000,000. Final cost depends on design, site and finishes — contact us for a free quote.",
     },
     {
         q: "How long does it take to build a wooden house in Kenya?",
