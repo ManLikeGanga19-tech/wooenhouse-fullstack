@@ -17,9 +17,7 @@ export default function Projects() {
         { title: "Off-the-grid cottage in Nanyuki", category: "Wooden Houses Construction", image: "/projects/off-nanyuki.jpg" },
         { title: "Kitchen Fittings", category: "General Carpentry", image: "/projects/kitchen.jpg" },
         { title: "Holiday Home, Naivasha", category: "Wooden Houses Construction", image: "/projects/holiday.jpg" },
-        { title: "Foldable Chairs", category: "General Carpentry", image: "/projects/fold-chair.jpg" },
         { title: "Staff Meeting Room, Taita", category: "Wooden Houses Construction", image: "/projects/staff.jpg" },
-        { title: "Garden Benches", category: "General Carpentry", image: "/projects/garden.jpg" },
     ]
 
     const [activeCategory, setActiveCategory] = useState("All")
