@@ -99,32 +99,29 @@ public class MailboxService(
 
         var allFolders = new List<FolderDto>();
 
-        // INBOX first
-        var inbox = s.Client.Inbox;
-        await inbox.OpenAsync(FolderAccess.ReadOnly, ct);
-        var (inboxDisplay, inboxIcon) = FolderMeta.For("INBOX");
-        allFolders.Add(new FolderDto("INBOX", inboxDisplay, inboxIcon, inbox.Count, inbox.Unread));
-        await inbox.CloseAsync(false, ct);
-
-        // All personal subfolders
+        // Use IMAP STATUS command for each folder — one round-trip per folder
+        // instead of SELECT (open) + CLOSE, which is ~3x faster.
         var ns      = s.Client.PersonalNamespaces[0];
         var folders = await s.Client.GetFoldersAsync(ns, false, ct);
 
-        foreach (var f in folders.OrderBy(x => x.Name))
+        // Ensure INBOX is first in the list
+        var ordered = folders
+            .OrderBy(f => string.Equals(f.FullName, "INBOX", StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+            .ThenBy(f => f.Name);
+
+        foreach (var f in ordered)
         {
             if ((f.Attributes & FolderAttributes.NoSelect) != 0) continue;
-            if (string.Equals(f.FullName, "INBOX", StringComparison.OrdinalIgnoreCase)) continue;
 
             try
             {
-                await f.OpenAsync(FolderAccess.ReadOnly, ct);
+                await f.StatusAsync(StatusItems.Count | StatusItems.Unread, ct);
                 var (display, icon) = FolderMeta.For(f.Name);
                 allFolders.Add(new FolderDto(f.FullName, display, icon, f.Count, f.Unread));
-                await f.CloseAsync(false, ct);
             }
             catch (Exception ex)
             {
-                log.LogWarning(ex, "[IMAP] Could not open folder {Folder}", f.FullName);
+                log.LogWarning(ex, "[IMAP] Could not STATUS folder {Folder}", f.FullName);
             }
         }
 

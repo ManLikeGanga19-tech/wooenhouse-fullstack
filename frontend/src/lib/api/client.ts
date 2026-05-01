@@ -182,24 +182,25 @@ export const api = {
     },
 
     mailbox: {
+      // IMAP calls can take 20-30 s on cold start — use a dedicated 60 s timeout
       getAccounts: () =>
-        apiClient.get<MailboxAccount[]>("/api/admin/mailbox/accounts"),
+        apiClient.get<MailboxAccount[]>("/api/admin/mailbox/accounts", { timeout: 60_000 }),
       getFolders: (address: string) =>
-        apiClient.get<MailboxFolder[]>(`/api/admin/mailbox/${encodeURIComponent(address)}/folders`),
+        apiClient.get<MailboxFolder[]>(`/api/admin/mailbox/${encodeURIComponent(address)}/folders`, { timeout: 60_000 }),
       getEmails: (address: string, folder: string, params?: { page?: number; pageSize?: number; search?: string }) =>
-        apiClient.get<MailboxListResponse>(`/api/admin/mailbox/${encodeURIComponent(address)}/${encodeURIComponent(folder)}`, { params }),
+        apiClient.get<MailboxListResponse>(`/api/admin/mailbox/${encodeURIComponent(address)}/${encodeURIComponent(folder)}`, { params, timeout: 60_000 }),
       getEmail: (address: string, folder: string, uid: number) =>
-        apiClient.get<MailboxEmailDetail>(`/api/admin/mailbox/${encodeURIComponent(address)}/${encodeURIComponent(folder)}/${uid}`),
+        apiClient.get<MailboxEmailDetail>(`/api/admin/mailbox/${encodeURIComponent(address)}/${encodeURIComponent(folder)}/${uid}`, { timeout: 60_000 }),
       markRead: (address: string, folder: string, uid: number, isRead: boolean) =>
-        apiClient.patch(`/api/admin/mailbox/${encodeURIComponent(address)}/${encodeURIComponent(folder)}/${uid}/read`, { isRead }),
+        apiClient.patch(`/api/admin/mailbox/${encodeURIComponent(address)}/${encodeURIComponent(folder)}/${uid}/read`, { isRead }, { timeout: 30_000 }),
       moveEmail: (address: string, folder: string, uid: number, targetFolder: string) =>
-        apiClient.post(`/api/admin/mailbox/${encodeURIComponent(address)}/${encodeURIComponent(folder)}/${uid}/move`, { targetFolder }),
+        apiClient.post(`/api/admin/mailbox/${encodeURIComponent(address)}/${encodeURIComponent(folder)}/${uid}/move`, { targetFolder }, { timeout: 30_000 }),
       deleteEmail: (address: string, folder: string, uid: number) =>
-        apiClient.delete(`/api/admin/mailbox/${encodeURIComponent(address)}/${encodeURIComponent(folder)}/${uid}`),
+        apiClient.delete(`/api/admin/mailbox/${encodeURIComponent(address)}/${encodeURIComponent(folder)}/${uid}`, { timeout: 30_000 }),
       sendEmail: (data: SendEmailPayload) =>
-        apiClient.post<{ message: string }>("/api/admin/mailbox/send", data),
+        apiClient.post<{ message: string }>("/api/admin/mailbox/send", data, { timeout: 60_000 }),
       saveDraft: (data: SendEmailPayload) =>
-        apiClient.post<{ message: string }>("/api/admin/mailbox/draft", data),
+        apiClient.post<{ message: string }>("/api/admin/mailbox/draft", data, { timeout: 30_000 }),
       getAttachmentUrl: (address: string, folder: string, uid: number, partSpecifier: string) =>
         `${apiClient.defaults.baseURL}/api/admin/mailbox/${encodeURIComponent(address)}/${encodeURIComponent(folder)}/${uid}/attachment/${encodeURIComponent(partSpecifier)}`,
     },

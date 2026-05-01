@@ -20,7 +20,7 @@ function formatDate(iso: string) {
 }
 
 export default function EmailList() {
-    const { selectedAccount, selectedFolder, selectedUid, setSelectedUid } = useMailboxStore();
+    const { selectedAccount, selectedFolder, selectedUid, setSelectedUid, folders } = useMailboxStore();
 
     const [emails,  setEmails]  = useState<MailboxEmailSummary[]>([]);
     const [total,   setTotal]   = useState(0);
@@ -28,6 +28,10 @@ export default function EmailList() {
     const [search,  setSearch]  = useState('');
     const [query,   setQuery]   = useState('');
     const [loading, setLoading] = useState(false);
+
+    // Only start loading emails once folders are loaded — this serialises the two
+    // IMAP requests so they don't both compete for the same connection lock.
+    const foldersReady = folders.length > 0;
 
     const load = useCallback(async (p: number, q: string) => {
         if (!selectedAccount || !selectedFolder) return;
@@ -52,7 +56,11 @@ export default function EmailList() {
         setEmails([]);
     }, [selectedAccount, selectedFolder]);
 
-    useEffect(() => { load(page, query); }, [load, page, query]);
+    // Wait until folder list is loaded before firing the email list request
+    useEffect(() => {
+        if (!foldersReady) return;
+        load(page, query);
+    }, [load, page, query, foldersReady]);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
