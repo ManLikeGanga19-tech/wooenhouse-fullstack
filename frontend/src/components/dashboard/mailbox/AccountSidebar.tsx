@@ -33,7 +33,10 @@ export default function AccountSidebar({ loading }: Props) {
 
         api.admin.mailbox.getFolders(selectedAccount)
             .then(res => { if (!cancelled) setFolders(res.data); })
-            .catch(() => toast.error('Failed to load folders'));
+            .catch((err: unknown) => {
+                const msg = err instanceof Error ? err.message : 'Failed to load folders';
+                toast.error('Failed to load folders', { description: msg });
+            });
 
         return () => { cancelled = true; };
     }, [selectedAccount, setFolders]);

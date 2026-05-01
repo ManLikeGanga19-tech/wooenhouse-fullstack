@@ -42,8 +42,9 @@ export default function EmailList() {
             });
             setEmails(res.data.emails);
             setTotal(res.data.total);
-        } catch {
-            toast.error('Failed to load emails');
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : 'Failed to load emails';
+            toast.error('Failed to load emails', { description: msg });
         } finally {
             setLoading(false);
         }

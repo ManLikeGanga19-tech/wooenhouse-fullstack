@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Net.Security;
 using MailKit.Net.Imap;
 using MailKit.Security;
 
@@ -62,7 +63,18 @@ public sealed class MailboxConnectionPool : IAsyncDisposable
         }
 
         entry.Client.Dispose();
-        entry.Client = new ImapClient();
+        entry.Client = new ImapClient
+        {
+            // Hostinger shared hosting serves its server cert (e.g. server123.hostinger.com)
+            // rather than the custom mail domain — bypass strict validation and log warnings.
+            ServerCertificateValidationCallback = (_, certificate, _, sslPolicyErrors) =>
+            {
+                if (sslPolicyErrors != SslPolicyErrors.None)
+                    _log.LogWarning("[IMAP] SSL cert issue for {Address}: {Errors} | Subject={Subject}",
+                        address, sslPolicyErrors, certificate?.Subject);
+                return true;
+            },
+        };
 
         await entry.Client.ConnectAsync(host, port, SecureSocketOptions.SslOnConnect, ct);
         await entry.Client.AuthenticateAsync(address, password, ct);
