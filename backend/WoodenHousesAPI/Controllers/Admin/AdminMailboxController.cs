@@ -10,7 +10,9 @@ namespace WoodenHousesAPI.Controllers.Admin;
 [Route("api/admin/mailbox")]
 [Authorize]
 [EnableRateLimiting("standard")]
-public class AdminMailboxController(IMailboxService mailbox) : ControllerBase
+public class AdminMailboxController(
+    IMailboxService mailbox,
+    ILogger<AdminMailboxController> logger) : ControllerBase
 {
     // GET /api/admin/mailbox/accounts
     [HttpGet("accounts")]
@@ -20,14 +22,21 @@ public class AdminMailboxController(IMailboxService mailbox) : ControllerBase
     [HttpGet("{address}/folders")]
     public async Task<IActionResult> GetFolders(string address, CancellationToken ct)
     {
+        logger.LogInformation("[Mailbox] GetFolders request for {Address}", address);
         try
         {
             var folders = await mailbox.GetFoldersAsync(address, ct);
             return Ok(folders);
         }
-        catch (KeyNotFoundException) { throw; } // let ExceptionMiddleware map to 404
+        catch (KeyNotFoundException) { throw; }
+        catch (TimeoutException ex)
+        {
+            logger.LogError("[Mailbox] GetFolders timeout for {Address}: {Msg}", address, ex.Message);
+            return StatusCode(500, new { message = ex.Message });
+        }
         catch (Exception ex)
         {
+            logger.LogError(ex, "[Mailbox] GetFolders error for {Address}", address);
             return StatusCode(500, new { message = $"[{ex.GetType().Name}] {ex.Message}" });
         }
     }
@@ -41,14 +50,21 @@ public class AdminMailboxController(IMailboxService mailbox) : ControllerBase
         [FromQuery] string? search  = null,
         CancellationToken ct = default)
     {
+        logger.LogInformation("[Mailbox] GetEmails request for {Address}/{Folder}", address, folder);
         try
         {
             var (emails, total) = await mailbox.GetEmailsAsync(address, folder, page, pageSize, search, ct);
             return Ok(new { emails, total, page, pageSize });
         }
         catch (KeyNotFoundException) { throw; }
+        catch (TimeoutException ex)
+        {
+            logger.LogError("[Mailbox] GetEmails timeout for {Address}/{Folder}: {Msg}", address, folder, ex.Message);
+            return StatusCode(500, new { message = ex.Message });
+        }
         catch (Exception ex)
         {
+            logger.LogError(ex, "[Mailbox] GetEmails error for {Address}/{Folder}", address, folder);
             return StatusCode(500, new { message = $"[{ex.GetType().Name}] {ex.Message}" });
         }
     }

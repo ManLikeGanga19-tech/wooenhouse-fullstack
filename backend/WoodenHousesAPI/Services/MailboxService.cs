@@ -95,14 +95,22 @@ public class MailboxService(
         var key = FolderKey(address, "");
         if (cache.TryGetValue(key, out List<FolderDto>? cached)) return cached!;
 
-        using var s = await OpenAsync(address, ct);
+        log.LogInformation("[IMAP] GetFolders start for {Address}", address);
+
+        // 30-second hard deadline — must complete before the 60-second axios timeout so
+        // the HTTP response can still be delivered to the browser.
+        using var ops = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        ops.CancelAfter(TimeSpan.FromSeconds(30));
+
+        using var s = await OpenAsync(address, ops.Token);
 
         var allFolders = new List<FolderDto>();
 
         // Use IMAP STATUS command for each folder — one round-trip per folder
         // instead of SELECT (open) + CLOSE, which is ~3x faster.
         var ns      = s.Client.PersonalNamespaces[0];
-        var folders = await s.Client.GetFoldersAsync(ns, false, ct);
+        log.LogInformation("[IMAP] Listing folders for {Address}", address);
+        var folders = await s.Client.GetFoldersAsync(ns, false, ops.Token);
 
         // Ensure INBOX is first in the list
         var ordered = folders
@@ -115,7 +123,7 @@ public class MailboxService(
 
             try
             {
-                await f.StatusAsync(StatusItems.Count | StatusItems.Unread, ct);
+                await f.StatusAsync(StatusItems.Count | StatusItems.Unread, ops.Token);
                 var (display, icon) = FolderMeta.For(f.Name);
                 allFolders.Add(new FolderDto(f.FullName, display, icon, f.Count, f.Unread));
             }
@@ -126,6 +134,7 @@ public class MailboxService(
         }
 
         cache.Set(key, allFolders, TimeSpan.FromMinutes(5));
+        log.LogInformation("[IMAP] GetFolders complete for {Address} — {Count} folders", address, allFolders.Count);
         return allFolders;
     }
 
@@ -138,29 +147,36 @@ public class MailboxService(
         var key = ListKey(address, folder, page, pageSize, search);
         if (cache.TryGetValue(key, out (List<EmailSummaryDto>, int) hit)) return hit;
 
-        using var s = await OpenAsync(address, ct);
+        log.LogInformation("[IMAP] GetEmails start for {Address}/{Folder} page={Page}", address, folder, page);
 
-        var f = await s.Client.GetFolderAsync(folder, ct);
-        await f.OpenAsync(FolderAccess.ReadOnly, ct);
+        using var ops = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        ops.CancelAfter(TimeSpan.FromSeconds(30));
+
+        using var s = await OpenAsync(address, ops.Token);
+
+        var f = await s.Client.GetFolderAsync(folder, ops.Token);
+        log.LogInformation("[IMAP] Opening folder {Folder} for {Address}", folder, address);
+        await f.OpenAsync(FolderAccess.ReadOnly, ops.Token);
+        log.LogInformation("[IMAP] Fetching summaries from {Folder} for {Address}", folder, address);
 
         IList<IMessageSummary> summaries;
 
         if (!string.IsNullOrWhiteSpace(search))
         {
             var query  = SearchQuery.SubjectContains(search).Or(SearchQuery.FromContains(search));
-            var uids   = await f.SearchAsync(query, ct);
+            var uids   = await f.SearchAsync(query, ops.Token);
             summaries  = await f.FetchAsync(uids,
                 MessageSummaryItems.UniqueId | MessageSummaryItems.Envelope |
-                MessageSummaryItems.Flags   | MessageSummaryItems.BodyStructure, ct);
+                MessageSummaryItems.Flags   | MessageSummaryItems.BodyStructure, ops.Token);
         }
         else
         {
             summaries = await f.FetchAsync(0, -1,
                 MessageSummaryItems.UniqueId | MessageSummaryItems.Envelope |
-                MessageSummaryItems.Flags   | MessageSummaryItems.BodyStructure, ct);
+                MessageSummaryItems.Flags   | MessageSummaryItems.BodyStructure, ops.Token);
         }
 
-        await f.CloseAsync(false, ct);
+        await f.CloseAsync(false, ops.Token);
 
         var sorted = summaries.OrderByDescending(m => m.Date).ToList();
         var total  = sorted.Count;
@@ -185,6 +201,7 @@ public class MailboxService(
 
         var tuple = (result, total);
         cache.Set(key, tuple, TimeSpan.FromMinutes(2));
+        log.LogInformation("[IMAP] GetEmails complete for {Address}/{Folder} — {Total} total", address, folder, total);
         return tuple;
     }
 

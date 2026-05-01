@@ -55,8 +55,6 @@ public sealed class MailboxConnectionPool : IAsyncDisposable
         if (entry.Client.IsConnected && entry.Client.IsAuthenticated)
             return;
 
-        _log.LogInformation("[IMAP] Connecting {Address}", address);
-
         if (entry.Client.IsConnected)
         {
             try { await entry.Client.DisconnectAsync(true, ct); } catch { /* swallow */ }
@@ -65,8 +63,8 @@ public sealed class MailboxConnectionPool : IAsyncDisposable
         entry.Client.Dispose();
         entry.Client = new ImapClient
         {
-            // Hostinger shared hosting serves its server cert (e.g. server123.hostinger.com)
-            // rather than the custom mail domain — bypass strict validation and log warnings.
+            // 15 s per socket read/write operation (separate from connect timeout below)
+            Timeout = 15_000,
             ServerCertificateValidationCallback = (_, certificate, _, sslPolicyErrors) =>
             {
                 if (sslPolicyErrors != SslPolicyErrors.None)
@@ -76,10 +74,27 @@ public sealed class MailboxConnectionPool : IAsyncDisposable
             },
         };
 
-        await entry.Client.ConnectAsync(host, port, SecureSocketOptions.SslOnConnect, ct);
-        await entry.Client.AuthenticateAsync(address, password, ct);
+        _log.LogInformation("[IMAP] Connecting to {Host}:{Port} for {Address}", host, port, address);
 
-        _log.LogInformation("[IMAP] Authenticated {Address}", address);
+        // Hard 20-second deadline for the TCP+TLS handshake so the HTTP response can
+        // still be delivered to the browser before the 60-second axios timeout fires.
+        using var connectCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        connectCts.CancelAfter(TimeSpan.FromSeconds(20));
+
+        try
+        {
+            await entry.Client.ConnectAsync(host, port, SecureSocketOptions.SslOnConnect, connectCts.Token);
+            _log.LogInformation("[IMAP] TCP+TLS connected for {Address}, authenticating…", address);
+
+            await entry.Client.AuthenticateAsync(address, password, connectCts.Token);
+            _log.LogInformation("[IMAP] Authenticated {Address}", address);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            // Our internal 20-second deadline fired — convert to a descriptive exception
+            throw new TimeoutException(
+                $"IMAP connection to {host}:{port} for {address} timed out after 20 s (TCP/TLS or AUTH).");
+        }
     }
 
     public async ValueTask DisposeAsync()
