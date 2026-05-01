@@ -6,7 +6,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Testcontainers.PostgreSql;
 using WoodenHousesAPI.Data;
-using WoodenHousesAPI.DTOs.Mailbox;
 using WoodenHousesAPI.Models;
 using WoodenHousesAPI.Services;
 
@@ -98,14 +97,6 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>, IAsyncL
             if (auditDescriptor is null)
                 services.AddScoped<IAuditService, AuditService>();
 
-            // Replace the real mailbox service so tests never attempt IMAP/SMTP
-            // connections (which would timeout in CI where port 993 is blocked).
-            var mailboxDescriptor = services.SingleOrDefault(
-                d => d.ServiceType == typeof(IMailboxService));
-            if (mailboxDescriptor != null)
-                services.Remove(mailboxDescriptor);
-
-            services.AddScoped<IMailboxService, NullMailboxService>();
         });
     }
 
@@ -243,88 +234,3 @@ internal sealed class NullEmailService : IEmailService
         => Task.CompletedTask;
 }
 
-/// <summary>
-/// Stub mailbox service for integration tests — returns canned data for the
-/// known test account and throws KeyNotFoundException for unknown addresses,
-/// so tests never attempt IMAP/SMTP connections.
-/// </summary>
-internal sealed class NullMailboxService : IMailboxService
-{
-    private static readonly List<MailboxAccountInfo> Accounts =
-    [
-        new("Sales",       "sales@woodenhouseskenya.com"),
-        new("Procurement", "procurement@woodenhouseskenya.com"),
-        new("Info",        "info@woodenhouseskenya.com"),
-        new("Director",    "director@woodenhouseskenya.com"),
-        new("Accounts",    "accounts@woodenhouseskenya.com"),
-    ];
-
-    private static readonly List<FolderDto> Folders =
-    [
-        new("INBOX",   "Inbox",   "inbox",          45, 3),
-        new("Sent",    "Sent",    "send",            12, 0),
-        new("Drafts",  "Drafts",  "pencil",           2, 0),
-        new("Trash",   "Trash",   "trash",            7, 0),
-        new("Junk",    "Junk",    "alert-triangle",   1, 0),
-        new("Archive", "Archive", "archive",         23, 0),
-    ];
-
-    private void EnsureKnown(string address)
-    {
-        if (!Accounts.Any(a => a.Address.Equals(address, StringComparison.OrdinalIgnoreCase)))
-            throw new KeyNotFoundException($"Mailbox account '{address}' not configured.");
-    }
-
-    public IReadOnlyList<MailboxAccountInfo> GetAccounts() => Accounts;
-
-    public Task<List<FolderDto>> GetFoldersAsync(string address, CancellationToken ct = default)
-    {
-        EnsureKnown(address);
-        return Task.FromResult(Folders);
-    }
-
-    public Task<(List<EmailSummaryDto> Emails, int Total)> GetEmailsAsync(
-        string address, string folder, int page, int pageSize, string? search, CancellationToken ct = default)
-    {
-        EnsureKnown(address);
-        var emails = new List<EmailSummaryDto>
-        {
-            new(101, "Test subject", "client@example.com", "Test Client",
-                address, DateTime.UtcNow, false, false, null),
-        };
-        return Task.FromResult((emails, 1));
-    }
-
-    public Task<EmailDetailDto?> GetEmailAsync(
-        string address, string folder, uint uid, CancellationToken ct = default)
-    {
-        EnsureKnown(address);
-        EmailDetailDto? dto = uid == 0 ? null : new EmailDetailDto(
-            uid, "Test subject", "client@example.com", "Test Client",
-            address, null, null, DateTime.UtcNow, true,
-            "<p>Hello</p>", "Hello", "<msg@test>", null, null, []);
-        return Task.FromResult(dto);
-    }
-
-    public Task MarkReadAsync(string address, string folder, uint uid, bool isRead, CancellationToken ct = default)
-    { EnsureKnown(address); return Task.CompletedTask; }
-
-    public Task MoveEmailAsync(string address, string folder, uint uid, string targetFolder, CancellationToken ct = default)
-    { EnsureKnown(address); return Task.CompletedTask; }
-
-    public Task DeleteEmailAsync(string address, string folder, uint uid, CancellationToken ct = default)
-    { EnsureKnown(address); return Task.CompletedTask; }
-
-    public Task SendEmailAsync(SendEmailRequest request, CancellationToken ct = default)
-    { EnsureKnown(request.AccountAddress); return Task.CompletedTask; }
-
-    public Task SaveDraftAsync(SendEmailRequest request, CancellationToken ct = default)
-    { EnsureKnown(request.AccountAddress); return Task.CompletedTask; }
-
-    public Task<(byte[] Data, string ContentType, string FileName)> GetAttachmentAsync(
-        string address, string folder, uint uid, string partSpecifier, CancellationToken ct = default)
-    {
-        EnsureKnown(address);
-        return Task.FromResult((new byte[] { 0x00 }, "application/octet-stream", "test.bin"));
-    }
-}

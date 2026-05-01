@@ -160,11 +160,6 @@ try
     builder.Services.AddScoped<IAuditService, AuditService>();
     builder.Services.AddHttpClient<IRecaptchaService, RecaptchaService>();
 
-    // Mailbox (IMAP/SMTP via MailKit — reads the 6 company mailboxes)
-    builder.Services.Configure<MailboxSettings>(builder.Configuration.GetSection("Mailboxes"));
-    builder.Services.AddSingleton<MailboxConnectionPool>();
-    builder.Services.AddScoped<IMailboxService, MailboxService>();
-
     // Resend — transactional email via HTTPS (replaces SMTP which is blocked on Render)
     builder.Services.AddOptions();
     builder.Services.AddHttpClient<ResendClient>();
