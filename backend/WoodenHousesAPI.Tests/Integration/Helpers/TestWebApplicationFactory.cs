@@ -252,7 +252,6 @@ internal sealed class NullMailboxService : IMailboxService
 {
     private static readonly List<MailboxAccountInfo> Accounts =
     [
-        new("Technical",   "technical@woodenhouseskenya.com"),
         new("Sales",       "sales@woodenhouseskenya.com"),
         new("Procurement", "procurement@woodenhouseskenya.com"),
         new("Info",        "info@woodenhouseskenya.com"),

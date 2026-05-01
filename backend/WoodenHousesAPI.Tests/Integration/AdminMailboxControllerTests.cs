@@ -33,7 +33,7 @@ public class AdminMailboxControllerTests(TestWebApplicationFactory factory)
     // ─── GET /api/admin/mailbox/accounts ─────────────────────────────────────
 
     [Fact]
-    public async Task GetAccounts_Authenticated_Returns200WithSixAccounts()
+    public async Task GetAccounts_Authenticated_Returns200WithFiveAccounts()
     {
         var client = await factory.CreateAuthenticatedClientAsync();
 
@@ -43,11 +43,11 @@ public class AdminMailboxControllerTests(TestWebApplicationFactory factory)
 
         var accounts = await response.Content.ReadFromJsonAsync<List<AccountDto>>();
         accounts.Should().NotBeNull();
-        accounts!.Count.Should().Be(6);
-        accounts.Should().Contain(a => a.Address == "technical@woodenhouseskenya.com");
+        accounts!.Count.Should().Be(5);
         accounts.Should().Contain(a => a.Address == "sales@woodenhouseskenya.com");
         accounts.Should().Contain(a => a.Address == "info@woodenhouseskenya.com");
         accounts.Should().Contain(a => a.Address == "director@woodenhouseskenya.com");
+        accounts.Should().NotContain(a => a.Address == "technical@woodenhouseskenya.com");
     }
 
     // ─── GET /api/admin/mailbox/{address}/folders ─────────────────────────────
