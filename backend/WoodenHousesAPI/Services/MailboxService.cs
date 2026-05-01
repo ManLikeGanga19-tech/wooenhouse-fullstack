@@ -100,7 +100,7 @@ public class MailboxService(
         // 30-second hard deadline — must complete before the 60-second axios timeout so
         // the HTTP response can still be delivered to the browser.
         using var ops = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        ops.CancelAfter(TimeSpan.FromSeconds(30));
+        ops.CancelAfter(TimeSpan.FromSeconds(50));
 
         using var s = await OpenAsync(address, ops.Token);
 
@@ -150,7 +150,7 @@ public class MailboxService(
         log.LogInformation("[IMAP] GetEmails start for {Address}/{Folder} page={Page}", address, folder, page);
 
         using var ops = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        ops.CancelAfter(TimeSpan.FromSeconds(30));
+        ops.CancelAfter(TimeSpan.FromSeconds(50));
 
         using var s = await OpenAsync(address, ops.Token);
 
