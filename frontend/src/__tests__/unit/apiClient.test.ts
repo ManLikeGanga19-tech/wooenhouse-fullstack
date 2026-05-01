@@ -163,6 +163,165 @@ describe("api.services", () => {
   });
 });
 
+// ─── Mailbox ─────────────────────────────────────────────────────────────────
+
+describe("api.admin.mailbox", () => {
+  const ACCOUNTS = [
+    { name: "Technical", address: "technical@woodenhouseskenya.com" },
+    { name: "Sales",     address: "sales@woodenhouseskenya.com"     },
+  ];
+
+  const FOLDERS = [
+    { name: "INBOX",  displayName: "Inbox",  icon: "inbox", totalCount: 10, unreadCount: 2 },
+    { name: "Sent",   displayName: "Sent",   icon: "send",  totalCount: 5,  unreadCount: 0 },
+    { name: "Drafts", displayName: "Drafts", icon: "pencil",totalCount: 1,  unreadCount: 0 },
+  ];
+
+  const EMAIL_SUMMARY = {
+    uid: 101, subject: "Project inquiry", from: "client@example.com",
+    fromName: "Jane Kamau", to: "info@woodenhouseskenya.com",
+    date: "2026-01-01T10:00:00Z", isRead: false, hasAttachments: false, preview: null,
+  };
+
+  const EMAIL_DETAIL = {
+    uid: 101, subject: "Project inquiry", from: "client@example.com",
+    fromName: "Jane Kamau", to: "info@woodenhouseskenya.com",
+    cc: null, bcc: null, date: "2026-01-01T10:00:00Z", isRead: true,
+    htmlBody: "<p>Hello</p>", textBody: "Hello", messageId: "<x@mail>",
+    inReplyTo: null, references: null, attachments: [],
+  };
+
+  it("getAccounts() returns all accounts", async () => {
+    mock.onGet("/api/admin/mailbox/accounts").reply(200, ACCOUNTS);
+
+    const res = await api.admin.mailbox.getAccounts();
+    expect(res.data).toHaveLength(2);
+    expect(res.data[0].address).toBe("technical@woodenhouseskenya.com");
+  });
+
+  it("getFolders() returns folder list for address", async () => {
+    const encoded = encodeURIComponent("info@woodenhouseskenya.com");
+    mock.onGet(`/api/admin/mailbox/${encoded}/folders`).reply(200, FOLDERS);
+
+    const res = await api.admin.mailbox.getFolders("info@woodenhouseskenya.com");
+    expect(res.data).toHaveLength(3);
+    expect(res.data[0].name).toBe("INBOX");
+    expect(res.data[0].unreadCount).toBe(2);
+  });
+
+  it("getEmails() returns paginated list", async () => {
+    const encoded = encodeURIComponent("info@woodenhouseskenya.com");
+    mock
+      .onGet(`/api/admin/mailbox/${encoded}/${encodeURIComponent("INBOX")}`)
+      .reply(200, { emails: [EMAIL_SUMMARY], total: 1, page: 1, pageSize: 25 });
+
+    const res = await api.admin.mailbox.getEmails("info@woodenhouseskenya.com", "INBOX");
+    expect(res.data.emails).toHaveLength(1);
+    expect(res.data.total).toBe(1);
+    expect(res.data.emails[0].isRead).toBe(false);
+  });
+
+  it("getEmails() passes search param", async () => {
+    const encoded = encodeURIComponent("info@woodenhouseskenya.com");
+    mock
+      .onGet(`/api/admin/mailbox/${encoded}/${encodeURIComponent("INBOX")}`, {
+        params: { page: 1, pageSize: 10, search: "inquiry" },
+      })
+      .reply(200, { emails: [EMAIL_SUMMARY], total: 1, page: 1, pageSize: 10 });
+
+    const res = await api.admin.mailbox.getEmails(
+      "info@woodenhouseskenya.com", "INBOX",
+      { page: 1, pageSize: 10, search: "inquiry" }
+    );
+    expect(res.data.emails[0].subject).toContain("inquiry");
+  });
+
+  it("getEmail() returns full detail", async () => {
+    const encoded = encodeURIComponent("info@woodenhouseskenya.com");
+    mock.onGet(`/api/admin/mailbox/${encoded}/${encodeURIComponent("INBOX")}/101`).reply(200, EMAIL_DETAIL);
+
+    const res = await api.admin.mailbox.getEmail("info@woodenhouseskenya.com", "INBOX", 101);
+    expect(res.data.uid).toBe(101);
+    expect(res.data.htmlBody).toBe("<p>Hello</p>");
+    expect(res.data.attachments).toHaveLength(0);
+  });
+
+  it("getEmail() throws on 404", async () => {
+    const encoded = encodeURIComponent("info@woodenhouseskenya.com");
+    mock.onGet(`/api/admin/mailbox/${encoded}/${encodeURIComponent("INBOX")}/999`).reply(404, { message: "Not found." });
+
+    await expect(
+      api.admin.mailbox.getEmail("info@woodenhouseskenya.com", "INBOX", 999)
+    ).rejects.toThrow("Not found.");
+  });
+
+  it("markRead() sends PATCH with isRead flag", async () => {
+    const encoded = encodeURIComponent("info@woodenhouseskenya.com");
+    mock.onPatch(`/api/admin/mailbox/${encoded}/${encodeURIComponent("INBOX")}/101/read`).reply(204);
+
+    await expect(
+      api.admin.mailbox.markRead("info@woodenhouseskenya.com", "INBOX", 101, true)
+    ).resolves.not.toThrow();
+  });
+
+  it("moveEmail() sends POST with targetFolder", async () => {
+    const encoded = encodeURIComponent("info@woodenhouseskenya.com");
+    mock.onPost(`/api/admin/mailbox/${encoded}/${encodeURIComponent("INBOX")}/101/move`).reply(204);
+
+    await expect(
+      api.admin.mailbox.moveEmail("info@woodenhouseskenya.com", "INBOX", 101, "Archive")
+    ).resolves.not.toThrow();
+  });
+
+  it("deleteEmail() sends DELETE", async () => {
+    const encoded = encodeURIComponent("info@woodenhouseskenya.com");
+    mock.onDelete(`/api/admin/mailbox/${encoded}/${encodeURIComponent("INBOX")}/101`).reply(204);
+
+    await expect(
+      api.admin.mailbox.deleteEmail("info@woodenhouseskenya.com", "INBOX", 101)
+    ).resolves.not.toThrow();
+  });
+
+  it("sendEmail() resolves with message", async () => {
+    mock.onPost("/api/admin/mailbox/send").reply(200, { message: "Email sent." });
+
+    const res = await api.admin.mailbox.sendEmail({
+      accountAddress: "info@woodenhouseskenya.com",
+      to:             "client@example.com",
+      subject:        "Re: Project",
+      textBody:       "Thanks for reaching out.",
+    });
+    expect(res.data.message).toBe("Email sent.");
+  });
+
+  it("sendEmail() throws on 400 when required fields missing", async () => {
+    mock.onPost("/api/admin/mailbox/send").reply(400, { message: "Required fields missing." });
+
+    await expect(
+      api.admin.mailbox.sendEmail({} as never)
+    ).rejects.toThrow("Required fields missing.");
+  });
+
+  it("saveDraft() resolves with message", async () => {
+    mock.onPost("/api/admin/mailbox/draft").reply(200, { message: "Draft saved." });
+
+    const res = await api.admin.mailbox.saveDraft({
+      accountAddress: "info@woodenhouseskenya.com",
+      to:             "(draft)",
+      subject:        "(no subject)",
+    });
+    expect(res.data.message).toBe("Draft saved.");
+  });
+
+  it("getAttachmentUrl() returns a constructed URL string", () => {
+    const url = api.admin.mailbox.getAttachmentUrl(
+      "info@woodenhouseskenya.com", "INBOX", 101, "invoice.pdf"
+    );
+    expect(url).toContain("/api/admin/mailbox/");
+    expect(url).toContain("invoice.pdf");
+  });
+});
+
 // ─── Error normalisation ──────────────────────────────────────────────────────
 
 describe("error normalisation", () => {

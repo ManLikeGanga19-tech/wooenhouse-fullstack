@@ -22,6 +22,10 @@ try
 {
     var builder = WebApplication.CreateBuilder(args);
 
+    // ─── Kestrel — raise body size limit for large image/video uploads ────────
+    builder.WebHost.ConfigureKestrel(opts =>
+        opts.Limits.MaxRequestBodySize = 200L * 1024 * 1024); // 200 MB
+
     // ─── Serilog ─────────────────────────────────────────────────────────────
     builder.Host.UseSerilog((ctx, lc) => lc
         .ReadFrom.Configuration(ctx.Configuration)
@@ -147,10 +151,19 @@ try
     // ─── HTTP Context ─────────────────────────────────────────────────────────
     builder.Services.AddHttpContextAccessor();
 
+    // ─── Memory Cache ─────────────────────────────────────────────────────────
+    builder.Services.AddMemoryCache();
+
     // ─── Application Services ─────────────────────────────────────────────────
     builder.Services.AddScoped<IAuthService, AuthService>();
     builder.Services.AddScoped<IEmailService, EmailService>();
+    builder.Services.AddScoped<IAuditService, AuditService>();
     builder.Services.AddHttpClient<IRecaptchaService, RecaptchaService>();
+
+    // Mailbox (IMAP/SMTP via MailKit — reads the 6 company mailboxes)
+    builder.Services.Configure<MailboxSettings>(builder.Configuration.GetSection("Mailboxes"));
+    builder.Services.AddSingleton<MailboxConnectionPool>();
+    builder.Services.AddScoped<IMailboxService, MailboxService>();
 
     // Resend — transactional email via HTTPS (replaces SMTP which is blocked on Render)
     builder.Services.AddOptions();

@@ -57,7 +57,7 @@ export function ImageUpload({ value, onChange }: ImageUploadProps) {
             <>
               <Upload size={22} className="mb-2" />
               <p className="text-sm font-medium">Click to upload</p>
-              <p className="text-xs mt-1">JPG, PNG, WebP · Max 10 MB</p>
+              <p className="text-xs mt-1">JPG, PNG, WebP · MP4, MOV · Max 200 MB</p>
             </>
           )}
         </div>
@@ -65,7 +65,7 @@ export function ImageUpload({ value, onChange }: ImageUploadProps) {
       <input
         ref={inputRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp,image/gif"
+        accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime,video/avi,video/webm"
         className="hidden"
         onChange={e => {
           const f = e.target.files?.[0];

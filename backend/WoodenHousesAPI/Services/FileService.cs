@@ -2,14 +2,15 @@ namespace WoodenHousesAPI.Services;
 
 public class FileService(IWebHostEnvironment env) : IFileService
 {
-    private static readonly string[] AllowedExtensions = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
-    private const long MaxFileSizeBytes = 10 * 1024 * 1024; // 10 MB
+    private static readonly string[] AllowedExtensions =
+        [".jpg", ".jpeg", ".png", ".webp", ".gif", ".mp4", ".mov", ".avi", ".webm"];
+    private const long MaxFileSizeBytes = 200L * 1024 * 1024; // 200 MB
 
     public async Task<string> UploadAsync(IFormFile file, string subfolder)
     {
         // Validate size
         if (file.Length > MaxFileSizeBytes)
-            throw new InvalidOperationException($"File size exceeds the 10 MB limit.");
+            throw new InvalidOperationException($"File size exceeds the 200 MB limit.");
 
         // Validate extension (never trust Content-Type header alone)
         var ext = Path.GetExtension(file.FileName).ToLowerInvariant();

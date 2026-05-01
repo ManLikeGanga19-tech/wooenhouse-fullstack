@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using WoodenHousesAPI.Data;
 using WoodenHousesAPI.Models;
@@ -10,7 +11,8 @@ namespace WoodenHousesAPI.Controllers.Admin;
 [ApiController]
 [Route("api/admin/quotes")]
 [Authorize]
-public class AdminQuotesController(AppDbContext db, IEmailService emailService, IConfiguration config) : ControllerBase
+[EnableRateLimiting("standard")]
+public class AdminQuotesController(AppDbContext db, IEmailService emailService, IConfiguration config, IAuditService audit) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetAll(
@@ -59,6 +61,8 @@ public class AdminQuotesController(AppDbContext db, IEmailService emailService, 
 
         db.Quotes.Add(quote);
         await db.SaveChangesAsync();
+        await audit.LogAsync("quote.created", "Quote", quote.Id.ToString(),
+            $"number={quote.QuoteNumber} customer={quote.CustomerEmail} total={quote.FinalPrice}");
         return CreatedAtAction(nameof(GetById), new { id = quote.Id }, quote);
     }
 
@@ -91,6 +95,8 @@ public class AdminQuotesController(AppDbContext db, IEmailService emailService, 
         quote.FinalPrice = ComputeFinalPrice(quote);
 
         await db.SaveChangesAsync();
+        await audit.LogAsync("quote.updated", "Quote", id.ToString(),
+            $"number={quote.QuoteNumber} status={quote.Status} total={quote.FinalPrice}");
         return Ok(quote);
     }
 
@@ -186,6 +192,7 @@ public class AdminQuotesController(AppDbContext db, IEmailService emailService, 
 
         db.Quotes.Remove(quote);
         await db.SaveChangesAsync();
+        await audit.LogAsync("quote.deleted", "Quote", id.ToString());
         return NoContent();
     }
 

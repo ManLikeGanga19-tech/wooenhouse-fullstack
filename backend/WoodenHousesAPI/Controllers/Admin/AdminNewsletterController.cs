@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using WoodenHousesAPI.Data;
 using WoodenHousesAPI.DTOs.Newsletter;
@@ -10,7 +11,7 @@ namespace WoodenHousesAPI.Controllers.Admin;
 [ApiController]
 [Route("api/admin/newsletter")]
 [Authorize]
-public class AdminNewsletterController(AppDbContext db, IEmailService emailService) : ControllerBase
+public class AdminNewsletterController(AppDbContext db, IEmailService emailService, ILogger<AdminNewsletterController> logger, IAuditService audit) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetAll(
@@ -43,18 +44,20 @@ public class AdminNewsletterController(AppDbContext db, IEmailService emailServi
     }
 
     [HttpPatch("{id}")]
-    public async Task<IActionResult> Update(Guid id, [FromBody] Dictionary<string, object?> patch)
+    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateSubscriberRequest patch)
     {
         var subscriber = await db.NewsletterSubscribers.FindAsync(id);
         if (subscriber is null) return NotFound();
 
-        if (patch.TryGetValue("isSpam", out var sp) && sp is not null)
+        if (patch.IsSpam is not null)
         {
-            subscriber.IsSpam     = bool.Parse(sp.ToString()!);
+            subscriber.IsSpam     = patch.IsSpam.Value;
             subscriber.SpamReason = subscriber.IsSpam ? "manual" : null;
         }
 
         await db.SaveChangesAsync();
+        await audit.LogAsync("subscriber.updated", "NewsletterSubscriber", id.ToString(),
+            $"isSpam={subscriber.IsSpam}");
         return Ok(subscriber);
     }
 
@@ -66,10 +69,13 @@ public class AdminNewsletterController(AppDbContext db, IEmailService emailServi
 
         db.NewsletterSubscribers.Remove(subscriber);
         await db.SaveChangesAsync();
+        await audit.LogAsync("subscriber.deleted", "NewsletterSubscriber", id.ToString(),
+            $"email={subscriber.Email}");
         return NoContent();
     }
 
     [HttpPost("send")]
+    [EnableRateLimiting("standard")]
     public async Task<IActionResult> SendBroadcast([FromBody] NewsletterBroadcastRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Subject) || string.IsNullOrWhiteSpace(request.Content))
@@ -83,7 +89,12 @@ public class AdminNewsletterController(AppDbContext db, IEmailService emailServi
         if (recipients.Count == 0)
             return BadRequest(new { message = "No active subscribers found." });
 
-        _ = emailService.SendNewsletterBroadcastAsync(recipients, request.Subject, request.Content);
+        _ = emailService.SendNewsletterBroadcastAsync(recipients, request.Subject, request.Content)
+            .ContinueWith(t => logger.LogError(t.Exception,
+                "[EMAIL] Newsletter broadcast failed for {Count} recipients", recipients.Count),
+                CancellationToken.None,
+                TaskContinuationOptions.OnlyOnFaulted,
+                TaskScheduler.Default);
 
         return Ok(new
         {

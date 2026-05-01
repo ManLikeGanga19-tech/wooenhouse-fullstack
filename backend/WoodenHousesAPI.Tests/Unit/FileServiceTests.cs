@@ -47,6 +47,10 @@ public class FileServiceTests : IDisposable
     [InlineData("picture.png")]
     [InlineData("hero.webp")]
     [InlineData("banner.gif")]
+    [InlineData("clip.mp4")]
+    [InlineData("footage.mov")]
+    [InlineData("recording.avi")]
+    [InlineData("screen.webm")]
     public async Task Upload_AllAllowedExtensions_Succeed(string filename)
     {
         var file = MakeFormFile(filename, "image/jpeg");
@@ -73,13 +77,35 @@ public class FileServiceTests : IDisposable
     [Fact]
     public async Task Upload_FileTooLarge_Throws()
     {
-        // 11 MB — over the 10 MB limit
-        var file = MakeFormFile("big.jpg", "image/jpeg", sizeBytes: 11 * 1024 * 1024);
+        // 201 MB — over the 200 MB limit
+        var file = MakeFormFile("big.jpg", "image/jpeg", sizeBytes: 201 * 1024 * 1024);
 
         Func<Task> act = () => _sut.UploadAsync(file, "projects");
 
         await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*10 MB*");
+            .WithMessage("*200 MB*");
+    }
+
+    [Fact]
+    public async Task Upload_LargeCanonJpeg_Succeeds()
+    {
+        // 25 MB — typical Canon EOS high-res JPEG
+        var file = MakeFormFile("canon-eos-photo.jpg", "image/jpeg", sizeBytes: 25 * 1024 * 1024);
+
+        var url = await _sut.UploadAsync(file, "projects");
+
+        url.Should().StartWith("/uploads/projects/");
+    }
+
+    [Fact]
+    public async Task Upload_VideoFile_ReturnsUrl()
+    {
+        var file = MakeFormFile("site-tour.mp4", "video/mp4", sizeBytes: 50 * 1024 * 1024);
+
+        var url = await _sut.UploadAsync(file, "projects");
+
+        url.Should().StartWith("/uploads/projects/");
+        url.Should().EndWith(".mp4");
     }
 
     [Fact]

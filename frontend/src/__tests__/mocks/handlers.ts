@@ -149,4 +149,90 @@ export const handlers = [
       { id: "n1", email: "subscriber@test.com", status: "active", subscribedAt: new Date().toISOString() },
     ]);
   }),
+
+  // Admin — mailbox
+  http.get(`${BASE}/api/admin/mailbox/accounts`, () => {
+    return HttpResponse.json([
+      { name: "Technical",   address: "technical@woodenhouseskenya.com"   },
+      { name: "Sales",       address: "sales@woodenhouseskenya.com"       },
+      { name: "Procurement", address: "procurement@woodenhouseskenya.com" },
+      { name: "Info",        address: "info@woodenhouseskenya.com"        },
+      { name: "Director",    address: "director@woodenhouseskenya.com"    },
+      { name: "Accounts",    address: "accounts@woodenhouseskenya.com"    },
+    ]);
+  }),
+
+  http.get(`${BASE}/api/admin/mailbox/:address/folders`, () => {
+    return HttpResponse.json([
+      { name: "INBOX",   displayName: "Inbox",   icon: "inbox",   totalCount: 45, unreadCount: 3 },
+      { name: "Sent",    displayName: "Sent",    icon: "send",    totalCount: 12, unreadCount: 0 },
+      { name: "Drafts",  displayName: "Drafts",  icon: "pencil",  totalCount: 2,  unreadCount: 0 },
+      { name: "Trash",   displayName: "Trash",   icon: "trash",   totalCount: 7,  unreadCount: 0 },
+      { name: "Junk",    displayName: "Junk",    icon: "alert-triangle", totalCount: 1, unreadCount: 0 },
+      { name: "Archive", displayName: "Archive", icon: "archive", totalCount: 23, unreadCount: 0 },
+    ]);
+  }),
+
+  http.get(`${BASE}/api/admin/mailbox/:address/:folder`, ({ request }) => {
+    const url      = new URL(request.url);
+    const page     = Number(url.searchParams.get("page") ?? 1);
+    const pageSize = Number(url.searchParams.get("pageSize") ?? 25);
+    const emails   = [
+      {
+        uid: 101, subject: "Project inquiry from Nairobi", from: "client@example.com",
+        fromName: "Jane Kamau", to: "info@woodenhouseskenya.com",
+        date: new Date().toISOString(), isRead: false, hasAttachments: false, preview: null,
+      },
+      {
+        uid: 100, subject: "Quote follow-up", from: "another@example.com",
+        fromName: "John Mwangi", to: "info@woodenhouseskenya.com",
+        date: new Date().toISOString(), isRead: true, hasAttachments: true, preview: "Please find attached...",
+      },
+    ];
+    return HttpResponse.json({ emails, total: 2, page, pageSize });
+  }),
+
+  http.get(`${BASE}/api/admin/mailbox/:address/:folder/:uid`, ({ params }) => {
+    if (params.uid === "999") {
+      return HttpResponse.json({ message: "Not found." }, { status: 404 });
+    }
+    return HttpResponse.json({
+      uid: Number(params.uid), subject: "Project inquiry from Nairobi",
+      from: "client@example.com", fromName: "Jane Kamau",
+      to: "info@woodenhouseskenya.com", cc: null, bcc: null,
+      date: new Date().toISOString(), isRead: true,
+      htmlBody: "<p>Hello, I am interested in a wooden house in Nairobi.</p>",
+      textBody: "Hello, I am interested in a wooden house in Nairobi.",
+      messageId: "<abc123@mail.example.com>", inReplyTo: null, references: null,
+      attachments: [],
+    });
+  }),
+
+  http.patch(`${BASE}/api/admin/mailbox/:address/:folder/:uid/read`, () => {
+    return new HttpResponse(null, { status: 204 });
+  }),
+
+  http.post(`${BASE}/api/admin/mailbox/:address/:folder/:uid/move`, () => {
+    return new HttpResponse(null, { status: 204 });
+  }),
+
+  http.delete(`${BASE}/api/admin/mailbox/:address/:folder/:uid`, () => {
+    return new HttpResponse(null, { status: 204 });
+  }),
+
+  http.post(`${BASE}/api/admin/mailbox/send`, async ({ request }) => {
+    const body = await request.json() as { accountAddress?: string; to?: string; subject?: string };
+    if (!body.accountAddress || !body.to || !body.subject) {
+      return HttpResponse.json({ message: "Required fields missing." }, { status: 400 });
+    }
+    return HttpResponse.json({ message: "Email sent." });
+  }),
+
+  http.post(`${BASE}/api/admin/mailbox/draft`, async ({ request }) => {
+    const body = await request.json() as { accountAddress?: string };
+    if (!body.accountAddress) {
+      return HttpResponse.json({ message: "Required fields missing." }, { status: 400 });
+    }
+    return HttpResponse.json({ message: "Draft saved." });
+  }),
 ];

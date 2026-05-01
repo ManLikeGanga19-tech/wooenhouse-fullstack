@@ -2,13 +2,15 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WoodenHousesAPI.Data;
+using WoodenHousesAPI.DTOs.Contact;
+using WoodenHousesAPI.Services;
 
 namespace WoodenHousesAPI.Controllers.Admin;
 
 [ApiController]
 [Route("api/admin/contacts")]
 [Authorize]
-public class AdminContactsController(AppDbContext db) : ControllerBase
+public class AdminContactsController(AppDbContext db, IAuditService audit) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetAll(
@@ -68,24 +70,25 @@ public class AdminContactsController(AppDbContext db) : ControllerBase
     }
 
     [HttpPatch("{id}")]
-    public async Task<IActionResult> Update(Guid id, [FromBody] Dictionary<string, object?> patch)
+    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateContactRequest patch)
     {
         var contact = await db.Contacts.FindAsync(id);
         if (contact is null) return NotFound();
 
-        if (patch.TryGetValue("status",      out var s) && s is not null) contact.Status      = s.ToString()!;
-        if (patch.TryGetValue("priority",    out var p) && p is not null) contact.Priority    = p.ToString()!;
-        if (patch.TryGetValue("notes",       out var n))                  contact.Notes       = n?.ToString();
-        if (patch.TryGetValue("contactedAt", out var ca) && ca is not null)
-            contact.ContactedAt = DateTime.Parse(ca.ToString()!);
-        if (patch.TryGetValue("isSpam", out var sp) && sp is not null)
+        if (patch.Status      is not null) contact.Status   = patch.Status;
+        if (patch.Priority    is not null) contact.Priority = patch.Priority;
+        if (patch.Notes       is not null) contact.Notes    = patch.Notes;
+        if (patch.ContactedAt is not null) contact.ContactedAt = patch.ContactedAt;
+        if (patch.IsSpam      is not null)
         {
-            contact.IsSpam     = bool.Parse(sp.ToString()!);
+            contact.IsSpam     = patch.IsSpam.Value;
             contact.SpamReason = contact.IsSpam ? "manual" : null;
         }
 
         contact.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
+        await audit.LogAsync("contact.updated", "Contact", id.ToString(),
+            $"status={contact.Status} priority={contact.Priority} isSpam={contact.IsSpam}");
         return Ok(contact);
     }
 
@@ -97,6 +100,7 @@ public class AdminContactsController(AppDbContext db) : ControllerBase
 
         db.Contacts.Remove(contact);
         await db.SaveChangesAsync();
+        await audit.LogAsync("contact.deleted", "Contact", id.ToString());
         return NoContent();
     }
 }

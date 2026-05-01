@@ -10,11 +10,12 @@ namespace WoodenHousesAPI.Controllers.Admin;
 public class AdminUploadController(IFileService fileService) : ControllerBase
 {
     /// <summary>
-    /// Upload a single image (JPG, PNG, WebP, GIF — max 10 MB).
-    /// Returns the public URL path: /uploads/projects/{guid}.ext
+    /// Upload an image (JPG, PNG, WebP, GIF) or video (MP4, MOV, AVI, WebM) — max 200 MB.
+    /// Returns the public URL.
     /// </summary>
     [HttpPost]
-    [RequestSizeLimit(10 * 1024 * 1024)]
+    [RequestSizeLimit(200L * 1024 * 1024)]
+    [RequestFormLimits(MultipartBodyLengthLimit = 200L * 1024 * 1024)]
     public async Task<IActionResult> Upload(IFormFile file)
     {
         if (file is null || file.Length == 0)

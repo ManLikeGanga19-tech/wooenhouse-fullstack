@@ -15,6 +15,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<SiteSetting>           SiteSettings           => Set<SiteSetting>();
     public DbSet<BlogPost>              BlogPosts              => Set<BlogPost>();
     public DbSet<EmailLog>              EmailLogs              => Set<EmailLog>();
+    public DbSet<AuditLog>              AuditLogs              => Set<AuditLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -119,6 +120,15 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasKey(l => l.Id);
             e.Property(l => l.Status).HasDefaultValue("sent");
             e.Property(l => l.SentAt).HasDefaultValueSql("NOW()");
+        });
+
+        // AuditLog
+        modelBuilder.Entity<AuditLog>(e =>
+        {
+            e.HasKey(l => l.Id);
+            e.Property(l => l.CreatedAt).HasDefaultValueSql("NOW()");
+            e.HasIndex(l => l.Action);
+            e.HasIndex(l => l.AdminEmail);
         });
     }
 }

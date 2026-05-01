@@ -14,6 +14,7 @@ import {
     BookOpen,
     LogOut,
     Inbox,
+    MailOpen,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -34,8 +35,9 @@ const navigation = [
     { name: "Projects",  href: "/dashboard/projects",   icon: FolderOpen      },
     { name: "Services",  href: "/dashboard/services",   icon: Wrench          },
     { name: "Blog",      href: "/dashboard/blog",       icon: BookOpen        },
-    { name: "Emails",    href: "/dashboard/emails",     icon: Inbox           },
-    { name: "Settings",  href: "/dashboard/settings",   icon: Settings        },
+    { name: "Mailbox",    href: "/dashboard/emails",      icon: Inbox           },
+    { name: "Email Logs", href: "/dashboard/email-logs", icon: MailOpen        },
+    { name: "Settings",   href: "/dashboard/settings",   icon: Settings        },
 ];
 
 // Sidebar Content Component (shared between desktop and mobile)

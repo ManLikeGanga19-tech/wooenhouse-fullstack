@@ -16,7 +16,8 @@ namespace WoodenHousesAPI.Controllers;
 public class ContactsController(
     AppDbContext db,
     IEmailService emailService,
-    IRecaptchaService recaptcha) : ControllerBase
+    IRecaptchaService recaptcha,
+    ILogger<ContactsController> logger) : ControllerBase
 {
     [HttpPost]
     [EnableRateLimiting("strict")]
@@ -80,11 +81,17 @@ public class ContactsController(
             }
         }
 
-        // 5. Emails for real submissions only (fire-and-forget)
+        // 5. Emails for real submissions only — background send with explicit error logging
         if (!isSpam)
         {
-            _ = emailService.SendContactNotificationAsync(request.Name, request.Email, request.Message);
-            _ = emailService.SendContactAutoReplyAsync(request.Email, request.Name);
+            _ = Task.WhenAll(
+                    emailService.SendContactNotificationAsync(request.Name, request.Email, request.Message),
+                    emailService.SendContactAutoReplyAsync(request.Email, request.Name))
+                .ContinueWith(t => logger.LogError(t.Exception,
+                    "[EMAIL] Background send failed for contact from {Email}", request.Email),
+                    CancellationToken.None,
+                    TaskContinuationOptions.OnlyOnFaulted,
+                    TaskScheduler.Default);
         }
 
         return Ok(new { message = "Thank you! We will be in touch soon." });

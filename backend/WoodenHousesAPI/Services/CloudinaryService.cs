@@ -10,8 +10,10 @@ namespace WoodenHousesAPI.Services;
 /// </summary>
 public class CloudinaryService(IConfiguration config) : IFileService
 {
-    private static readonly string[] AllowedExtensions = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
-    private const long MaxFileSizeBytes = 10 * 1024 * 1024; // 10 MB
+    private static readonly string[] AllowedExtensions =
+        [".jpg", ".jpeg", ".png", ".webp", ".gif", ".mp4", ".mov", ".avi", ".webm"];
+    private static readonly string[] VideoExtensions = [".mp4", ".mov", ".avi", ".webm"];
+    private const long MaxFileSizeBytes = 200L * 1024 * 1024; // 200 MB
 
     private Cloudinary CreateClient()
     {
@@ -28,34 +30,45 @@ public class CloudinaryService(IConfiguration config) : IFileService
     public async Task<string> UploadAsync(IFormFile file, string subfolder)
     {
         if (file.Length > MaxFileSizeBytes)
-            throw new InvalidOperationException("File size exceeds the 10 MB limit.");
+            throw new InvalidOperationException("File size exceeds the 200 MB limit.");
 
         var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
         if (!AllowedExtensions.Contains(ext))
             throw new InvalidOperationException($"File type '{ext}' is not allowed.");
 
         var cloudinary = CreateClient();
-
-        // Folder: wooden-houses-kenya/projects  (or whatever subfolder is passed)
-        var publicId = $"wooden-houses-kenya/{subfolder}/{Guid.NewGuid()}";
+        var publicId   = $"wooden-houses-kenya/{subfolder}/{Guid.NewGuid()}";
+        var isVideo    = VideoExtensions.Contains(ext);
 
         await using var stream = file.OpenReadStream();
 
-        // Note: Transformation and Overwrite=false are intentionally omitted.
-        // SDK v1.28.0 includes boolean-false values in the string-to-sign, which
-        // violates Cloudinary's spec ("false values must not be included") and
-        // causes Invalid Signature errors. GUIDs guarantee uniqueness so Overwrite
-        // is not needed. q_auto/f_auto can be applied at serve time via URL.
-        var result = await cloudinary.UploadAsync(new ImageUploadParams
+        if (isVideo)
         {
-            File     = new FileDescription(file.FileName, stream),
-            PublicId = publicId,
-        });
-
-        if (result.Error is not null)
-            throw new InvalidOperationException($"Cloudinary upload failed: {result.Error.Message}");
-
-        return result.SecureUrl.ToString();
+            var result = await cloudinary.UploadAsync(new VideoUploadParams
+            {
+                File     = new FileDescription(file.FileName, stream),
+                PublicId = publicId,
+            });
+            if (result.Error is not null)
+                throw new InvalidOperationException($"Cloudinary upload failed: {result.Error.Message}");
+            return result.SecureUrl.ToString();
+        }
+        else
+        {
+            // Note: Transformation and Overwrite=false are intentionally omitted.
+            // SDK v1.28.0 includes boolean-false values in the string-to-sign, which
+            // violates Cloudinary's spec ("false values must not be included") and
+            // causes Invalid Signature errors. GUIDs guarantee uniqueness so Overwrite
+            // is not needed. q_auto/f_auto can be applied at serve time via URL.
+            var result = await cloudinary.UploadAsync(new ImageUploadParams
+            {
+                File     = new FileDescription(file.FileName, stream),
+                PublicId = publicId,
+            });
+            if (result.Error is not null)
+                throw new InvalidOperationException($"Cloudinary upload failed: {result.Error.Message}");
+            return result.SecureUrl.ToString();
+        }
     }
 
     public void Delete(string urlPath)

@@ -180,6 +180,29 @@ export const api = {
       getStats: () =>
         apiClient.get<EmailLogStats>("/api/admin/email-logs/stats"),
     },
+
+    mailbox: {
+      getAccounts: () =>
+        apiClient.get<MailboxAccount[]>("/api/admin/mailbox/accounts"),
+      getFolders: (address: string) =>
+        apiClient.get<MailboxFolder[]>(`/api/admin/mailbox/${encodeURIComponent(address)}/folders`),
+      getEmails: (address: string, folder: string, params?: { page?: number; pageSize?: number; search?: string }) =>
+        apiClient.get<MailboxListResponse>(`/api/admin/mailbox/${encodeURIComponent(address)}/${encodeURIComponent(folder)}`, { params }),
+      getEmail: (address: string, folder: string, uid: number) =>
+        apiClient.get<MailboxEmailDetail>(`/api/admin/mailbox/${encodeURIComponent(address)}/${encodeURIComponent(folder)}/${uid}`),
+      markRead: (address: string, folder: string, uid: number, isRead: boolean) =>
+        apiClient.patch(`/api/admin/mailbox/${encodeURIComponent(address)}/${encodeURIComponent(folder)}/${uid}/read`, { isRead }),
+      moveEmail: (address: string, folder: string, uid: number, targetFolder: string) =>
+        apiClient.post(`/api/admin/mailbox/${encodeURIComponent(address)}/${encodeURIComponent(folder)}/${uid}/move`, { targetFolder }),
+      deleteEmail: (address: string, folder: string, uid: number) =>
+        apiClient.delete(`/api/admin/mailbox/${encodeURIComponent(address)}/${encodeURIComponent(folder)}/${uid}`),
+      sendEmail: (data: SendEmailPayload) =>
+        apiClient.post<{ message: string }>("/api/admin/mailbox/send", data),
+      saveDraft: (data: SendEmailPayload) =>
+        apiClient.post<{ message: string }>("/api/admin/mailbox/draft", data),
+      getAttachmentUrl: (address: string, folder: string, uid: number, partSpecifier: string) =>
+        `${apiClient.defaults.baseURL}/api/admin/mailbox/${encodeURIComponent(address)}/${encodeURIComponent(folder)}/${uid}/attachment/${encodeURIComponent(partSpecifier)}`,
+    },
   },
 
   // Public blog
@@ -405,4 +428,75 @@ export interface EmailLogStats {
   failed: number;
   today:  number;
   total:  number;
+}
+
+// ─── Mailbox types ────────────────────────────────────────────────────────────
+
+export interface MailboxAccount {
+  name:    string;
+  address: string;
+}
+
+export interface MailboxFolder {
+  name:        string;
+  displayName: string;
+  icon:        string;
+  totalCount:  number;
+  unreadCount: number;
+}
+
+export interface MailboxEmailSummary {
+  uid:             number;
+  subject:         string;
+  from:            string;
+  fromName:        string;
+  to:              string;
+  date:            string;
+  isRead:          boolean;
+  hasAttachments:  boolean;
+  preview:         string | null;
+}
+
+export interface MailboxAttachment {
+  contentId:   string;
+  fileName:    string;
+  contentType: string;
+  size:        number;
+}
+
+export interface MailboxEmailDetail {
+  uid:         number;
+  subject:     string;
+  from:        string;
+  fromName:    string;
+  to:          string;
+  cc:          string | null;
+  bcc:         string | null;
+  date:        string;
+  isRead:      boolean;
+  htmlBody:    string | null;
+  textBody:    string | null;
+  messageId:   string | null;
+  inReplyTo:   string | null;
+  references:  string | null;
+  attachments: MailboxAttachment[];
+}
+
+export interface MailboxListResponse {
+  emails:   MailboxEmailSummary[];
+  total:    number;
+  page:     number;
+  pageSize: number;
+}
+
+export interface SendEmailPayload {
+  accountAddress: string;
+  to:             string;
+  cc?:            string;
+  bcc?:           string;
+  subject:        string;
+  htmlBody?:      string;
+  textBody?:      string;
+  inReplyTo?:     string;
+  references?:    string;
 }
