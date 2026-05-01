@@ -17,6 +17,7 @@ public class ContactsController(
     AppDbContext db,
     IEmailService emailService,
     IRecaptchaService recaptcha,
+    ISalesAgentService salesAgent,
     ILogger<ContactsController> logger) : ControllerBase
 {
     [HttpPost]
@@ -81,14 +82,22 @@ public class ContactsController(
             }
         }
 
-        // 5. Emails for real submissions only — background send with explicit error logging
+        // 5. For real submissions: notify admin and fire the sales agent (fire-and-forget)
         if (!isSpam)
         {
-            _ = Task.WhenAll(
-                    emailService.SendContactNotificationAsync(request.Name, request.Email, request.Message),
-                    emailService.SendContactAutoReplyAsync(request.Email, request.Name))
+            _ = emailService
+                .SendContactNotificationAsync(request.Name, request.Email, request.Message)
                 .ContinueWith(t => logger.LogError(t.Exception,
-                    "[EMAIL] Background send failed for contact from {Email}", request.Email),
+                    "[EMAIL] Notification failed for contact from {Email}", request.Email),
+                    CancellationToken.None,
+                    TaskContinuationOptions.OnlyOnFaulted,
+                    TaskScheduler.Default);
+
+            // Sales agent handles the personalised reply — replaces the generic auto-reply
+            _ = salesAgent
+                .HandleNewContactAsync(contact.Id)
+                .ContinueWith(t => logger.LogError(t.Exception,
+                    "[SalesAgent] Failed for contact {ContactId}", contact.Id),
                     CancellationToken.None,
                     TaskContinuationOptions.OnlyOnFaulted,
                     TaskScheduler.Default);

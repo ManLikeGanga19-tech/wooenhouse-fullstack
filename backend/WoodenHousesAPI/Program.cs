@@ -175,6 +175,13 @@ try
     else
         builder.Services.AddScoped<IFileService, FileService>();
 
+    // ─── Claude AI Agent Services ─────────────────────────────────────────────
+    builder.Services.Configure<ClaudeSettings>(
+        builder.Configuration.GetSection("Claude"));
+    builder.Services.AddHttpClient<IClaudeService, ClaudeService>();
+    builder.Services.AddScoped<IAgentContextService, AgentContextService>();
+    builder.Services.AddScoped<ISalesAgentService, SalesAgentService>();
+
     // ─── Controllers ─────────────────────────────────────────────────────────
     builder.Services.AddControllers(options =>
     {

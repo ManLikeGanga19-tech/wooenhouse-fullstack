@@ -9,4 +9,5 @@ public interface IEmailService
     Task SendNewsletterWelcomeAsync(string toEmail, string? name);
     Task SendNewsletterSubscriptionAlertAsync(string email, string? name);
     Task SendNewsletterBroadcastAsync(IEnumerable<string> recipients, string subject, string content);
+    Task SendAgentEmailAsync(string toEmail, string subject, string htmlBody, CancellationToken ct = default);
 }

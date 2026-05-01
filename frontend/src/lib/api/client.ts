@@ -181,6 +181,29 @@ export const api = {
         apiClient.get<EmailLogStats>("/api/admin/email-logs/stats"),
     },
 
+    agents: {
+      getTasks:  (params?: AgentTasksParams) =>
+        apiClient.get<PaginatedResponse<AgentTask>>("/api/admin/agents/tasks", { params }),
+      getTask:   (id: string) =>
+        apiClient.get<AgentTask>(`/api/admin/agents/tasks/${id}`),
+      getQueue:  () =>
+        apiClient.get<AgentTask[]>("/api/admin/agents/queue"),
+      getMetrics: () =>
+        apiClient.get<AgentMetrics>("/api/admin/agents/metrics"),
+      approve:   (id: string, data?: { subject?: string; body?: string }) =>
+        apiClient.post<{ message: string }>(`/api/admin/agents/tasks/${id}/approve`, data ?? {}),
+      reject:    (id: string, note?: string) =>
+        apiClient.post<{ message: string }>(`/api/admin/agents/tasks/${id}/reject`, { note }),
+      getContext: () =>
+        apiClient.get<AgentContext[]>("/api/admin/agents/context"),
+      updateContext: (key: string, value: string) =>
+        apiClient.put<AgentContext>(`/api/admin/agents/context/${key}`, { value }),
+      createContext: (data: Omit<AgentContext, "updatedAt">) =>
+        apiClient.post<AgentContext>("/api/admin/agents/context", data),
+      deleteContext: (key: string) =>
+        apiClient.delete(`/api/admin/agents/context/${key}`),
+    },
+
   },
 
   // Public blog
@@ -406,5 +429,63 @@ export interface EmailLogStats {
   failed: number;
   today:  number;
   total:  number;
+}
+
+export type AgentTaskStatus =
+  | "pending_approval"
+  | "auto_sent"
+  | "approved"
+  | "rejected"
+  | "failed";
+
+export interface AgentTask {
+  id:             string;
+  agentType:      string;
+  triggerType:    string;
+  status:         AgentTaskStatus;
+  contactId?:     string;
+  contactName?:   string;
+  contactEmail?:  string;
+  quoteId?:       string;
+  toAddress?:     string;
+  inputSummary:   string;
+  draftSubject:   string;
+  draftBody:      string;
+  finalSubject?:  string;
+  finalBody?:     string;
+  errorMessage?:  string;
+  approvedBy?:    string;
+  rejectedBy?:    string;
+  rejectionNote?: string;
+  createdAt:      string;
+  executedAt?:    string;
+}
+
+export interface AgentMetrics {
+  totalToday: number;
+  totalWeek:  number;
+  totalMonth: number;
+  pending:    number;
+  autoSent:   number;
+  approved:   number;
+  rejected:   number;
+  failed:     number;
+  byType:     { agentType: string; count: number }[];
+}
+
+export interface AgentContext {
+  key:       string;
+  label:     string;
+  value:     string;
+  hint?:     string;
+  sortOrder: number;
+  updatedAt: string;
+}
+
+export interface AgentTasksParams {
+  status?:    string;
+  agentType?: string;
+  page?:      number;
+  pageSize?:  number;
 }
 

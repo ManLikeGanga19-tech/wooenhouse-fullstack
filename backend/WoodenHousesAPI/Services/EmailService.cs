@@ -372,4 +372,12 @@ public class EmailService(
                 $"New Newsletter Subscriber: {email}", Layout(content)),
             "newsletter", InfoAddress, adminAddress);
     }
+
+    public async Task SendAgentEmailAsync(string toEmail, string subject, string htmlBody, CancellationToken ct = default)
+    {
+        logger.LogInformation("[EMAIL] Agent email → {To} | {Subject}", toEmail, subject);
+        await SendAndLog(
+            Build(SalesAddress, DisplayName, toEmail, subject, htmlBody),
+            "agent", SalesAddress, toEmail);
+    }
 }

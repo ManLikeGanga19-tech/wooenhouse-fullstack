@@ -16,6 +16,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<BlogPost>              BlogPosts              => Set<BlogPost>();
     public DbSet<EmailLog>              EmailLogs              => Set<EmailLog>();
     public DbSet<AuditLog>              AuditLogs              => Set<AuditLog>();
+    public DbSet<AgentTask>             AgentTasks             => Set<AgentTask>();
+    public DbSet<AgentContext>          AgentContexts          => Set<AgentContext>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -129,6 +131,32 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(l => l.CreatedAt).HasDefaultValueSql("NOW()");
             e.HasIndex(l => l.Action);
             e.HasIndex(l => l.AdminEmail);
+        });
+
+        // AgentTask
+        modelBuilder.Entity<AgentTask>(e =>
+        {
+            e.HasKey(t => t.Id);
+            e.Property(t => t.Status).HasDefaultValue("pending_approval");
+            e.Property(t => t.CreatedAt).HasDefaultValueSql("NOW()");
+            e.HasOne(t => t.Contact)
+             .WithMany()
+             .HasForeignKey(t => t.ContactId)
+             .OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(t => t.Quote)
+             .WithMany()
+             .HasForeignKey(t => t.QuoteId)
+             .OnDelete(DeleteBehavior.SetNull);
+            e.HasIndex(t => t.Status);
+            e.HasIndex(t => t.AgentType);
+            e.HasIndex(t => t.CreatedAt);
+        });
+
+        // AgentContext
+        modelBuilder.Entity<AgentContext>(e =>
+        {
+            e.HasKey(c => c.Key);
+            e.Property(c => c.UpdatedAt).HasDefaultValueSql("NOW()");
         });
     }
 }

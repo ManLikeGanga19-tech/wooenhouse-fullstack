@@ -18,6 +18,7 @@ public static class DatabaseSeeder
         await SeedServicesAsync(db, logger);
         await SeedProjectsAsync(db, logger);
         await SeedBlogPostsAsync(db, logger);
+        await SeedAgentContextAsync(db, logger);
     }
 
     // ─── Admin User ──────────────────────────────────────────────────────────
@@ -500,5 +501,81 @@ If you are ready to start thinking about your own wooden home, start a conversat
 
         await db.SaveChangesAsync();
         logger.LogInformation("Blog posts seeded: {Added} added, {Updated} updated.", added, updated);
+    }
+
+    // ─── Agent Context ────────────────────────────────────────────────────────
+    private static async Task SeedAgentContextAsync(AppDbContext db, ILogger logger)
+    {
+        var defaults = new List<AgentContext>
+        {
+            new()
+            {
+                Key       = "company_overview",
+                Label     = "Company Overview",
+                Value     = "Wooden Houses Kenya is a premium timber construction company based in Nairobi, Kenya. We design and build custom wooden homes, cabins, cottages, garden studios, and commercial timber structures. We have been in operation since 2016 and have completed projects across Kenya including Nairobi, Naivasha, Nanyuki, Laikipia, Taita Taveta, and the coast. We are known for fast construction timelines (4–9 weeks for most homes), quality craftsmanship, and eco-conscious building practices.",
+                Hint      = "A brief description of who you are and what you do — agents use this in every response.",
+                SortOrder = 1,
+            },
+            new()
+            {
+                Key       = "contact_details",
+                Label     = "Contact Details",
+                Value     = "Phone: +254 789 104 438 | Email: info@woodenhouseskenya.com | Website: woodenhouseskenya.com | Location: Nairobi, Kenya",
+                Hint      = "Phone, email, website and physical location.",
+                SortOrder = 2,
+            },
+            new()
+            {
+                Key       = "pricing_guide",
+                Label     = "Pricing Guide (2025)",
+                Value     = "Basic cabin or starter structure: KES 18,000–25,000 per m². Standard family home: KES 22,000–35,000 per m². High-finish residential: KES 35,000–55,000+ per m². Garden office or studio: KES 20,000–30,000 per m². A one-bedroom 40m² home typically ranges KES 900,000–1,400,000 depending on timber and finish. Pricing varies with location (remote sites add transport costs), timber species (cypress is affordable, mvule is premium), and interior finishes.",
+                Hint      = "Approximate cost ranges per square metre and example project costs for 2025.",
+                SortOrder = 3,
+            },
+            new()
+            {
+                Key       = "tone_guidelines",
+                Label     = "Communication Tone & Style",
+                Value     = "Warm, professional, and direct. We are Kenyan, so write naturally — no stiff corporate language. Use first-person plural (we, our). Address clients by their first name. Be specific and helpful — avoid vague assurances. End every client email with a clear next step (e.g. site visit, consultation call, or request for more details). Responses to inquiries should be under 200 words unless the client asked a detailed question.",
+                Hint      = "How agents should write emails and messages on behalf of the company.",
+                SortOrder = 4,
+            },
+            new()
+            {
+                Key       = "faqs",
+                Label     = "Frequently Asked Questions",
+                Value     = "Q: How long does construction take? A: Most homes finish in 4–9 weeks from groundbreaking. Q: Do you build outside Nairobi? A: Yes — we have built in Naivasha, Nanyuki, Laikipia, Taita Taveta, and the coast. Remote sites may carry additional transport costs. Q: What timber do you use? A: Mainly cypress and mvule. We can source other species on request. Q: Do you handle foundation and plumbing? A: Yes, we offer full turnkey construction from foundation to interior finish. Q: Can I see examples of your work? A: Yes — visit woodenhouseskenya.com/projects or request a site visit to a recently completed home.",
+                Hint      = "Common client questions and the standard answers — agents should use these when relevant.",
+                SortOrder = 5,
+            },
+            new()
+            {
+                Key       = "next_step_templates",
+                Label     = "Next Step Proposals",
+                Value     = "Site visit: 'We would love to come and see your land. Could we arrange a site visit this week or next?' Consultation call: 'Can we schedule a quick 20-minute call so we can understand your vision better?' Quote request: 'To give you an accurate quote, could you share the approximate size (m²), your preferred location and your target budget?' Follow-up: 'Just checking in — have you had a chance to think about what we discussed? We are happy to answer any questions.'",
+                Hint      = "Reusable next-step phrases agents can adapt at the end of client emails.",
+                SortOrder = 6,
+            },
+        };
+
+        int added = 0;
+        foreach (var ctx in defaults)
+        {
+            if (!db.AgentContexts.Any(c => c.Key == ctx.Key))
+            {
+                db.AgentContexts.Add(ctx);
+                added++;
+            }
+        }
+
+        if (added > 0)
+        {
+            await db.SaveChangesAsync();
+            logger.LogInformation("Seeded {Count} agent context entries.", added);
+        }
+        else
+        {
+            logger.LogInformation("Agent context already seeded — skipping.");
+        }
     }
 }
