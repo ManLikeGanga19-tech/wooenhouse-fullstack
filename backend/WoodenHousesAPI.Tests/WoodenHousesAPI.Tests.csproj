@@ -31,6 +31,10 @@
 
     <!-- HTTP client helpers -->
     <PackageReference Include="System.Net.Http.Json" Version="8.0.1" />
+
+    <!-- Security: force patched versions of vulnerable transitive packages -->
+    <PackageReference Include="System.Text.Json" Version="8.0.5" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="8.0.1" />
   </ItemGroup>
 
   <ItemGroup>

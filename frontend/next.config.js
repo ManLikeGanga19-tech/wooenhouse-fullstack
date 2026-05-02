@@ -1,10 +1,11 @@
-const withPWA = require("next-pwa")({
+// @ducanh2912/next-pwa replaces the unmaintained next-pwa v5
+const withPWA = require("@ducanh2912/next-pwa").default({
   dest: "public",
   register: true,
   skipWaiting: true,
   disable: process.env.NODE_ENV === "development",
   fallbacks: {
-    document: "/offline", // shown when network is unavailable
+    document: "/offline",
   },
   buildExcludes: [/middleware-manifest\.json$/],
 });
