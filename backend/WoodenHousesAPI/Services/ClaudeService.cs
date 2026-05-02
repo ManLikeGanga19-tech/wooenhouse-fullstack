@@ -76,6 +76,30 @@ public class ClaudeService(
         if (!response.IsSuccessStatusCode)
         {
             log.LogError("[Claude] API error {Status}: {Body}", response.StatusCode, body);
+
+            // Try to extract a clean error message from the Anthropic error payload
+            try
+            {
+                using var errDoc = System.Text.Json.JsonDocument.Parse(body);
+                var errMsg = errDoc.RootElement
+                    .GetProperty("error")
+                    .GetProperty("message")
+                    .GetString() ?? string.Empty;
+
+                if (errMsg.Contains("credit balance", StringComparison.OrdinalIgnoreCase) ||
+                    errMsg.Contains("insufficient", StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException(
+                        "CREDITS_LOW: Your Anthropic credit balance is too low. " +
+                        "Go to console.anthropic.com → Plans & Billing to top up.");
+                }
+
+                if (!string.IsNullOrWhiteSpace(errMsg))
+                    throw new InvalidOperationException($"Claude API error: {errMsg}");
+            }
+            catch (InvalidOperationException) { throw; }
+            catch { /* JSON parse failed — fall through to generic */ }
+
             throw new InvalidOperationException($"Claude API returned {response.StatusCode}: {body}");
         }
 

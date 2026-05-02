@@ -13,6 +13,7 @@ backend/.vs/
 backend/**/logs/
 backend/**/wwwroot/uploads/
 backend/WoodenHousesAPI/appsettings.Production.json
+backend/WoodenHousesAPI/appsettings.Development.json
 
 # ─── OS / IDE ─────────────────────────────────────────────────────────────────
 .DS_Store

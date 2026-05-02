@@ -175,8 +175,12 @@ export const api = {
     },
 
     emailLogs: {
-      getAll:  (params?: { status?: string; type?: string; page?: number; pageSize?: number }) =>
+      getAll:   (params?: { status?: string; type?: string; page?: number; pageSize?: number }) =>
         apiClient.get<EmailLogResponse>("/api/admin/email-logs", { params }),
+      getById:  (id: string) =>
+        apiClient.get<EmailLogDetail>(`/api/admin/email-logs/${id}`),
+      resend:   (id: string) =>
+        apiClient.post<{ message: string }>(`/api/admin/email-logs/${id}/resend`),
       getStats: () =>
         apiClient.get<EmailLogStats>("/api/admin/email-logs/stats"),
     },
@@ -415,14 +419,19 @@ export interface BlogListResponse {
 }
 
 export interface EmailLog {
-  id:           string;
-  type:         "contact_alert" | "auto_reply" | "quote" | "newsletter" | "agent";
-  fromAddress:  string;
-  toAddress:    string;
-  subject:      string;
-  status:       "sent" | "failed";
+  id:            string;
+  type:          "contact_alert" | "auto_reply" | "quote" | "newsletter" | "agent" | "resend";
+  fromAddress:   string;
+  toAddress:     string;
+  subject:       string;
+  status:        "sent" | "failed";
   errorMessage?: string;
-  sentAt:       string;
+  sentAt:        string;
+  hasBody?:      boolean;
+}
+
+export interface EmailLogDetail extends EmailLog {
+  htmlBody?: string;
 }
 
 export interface EmailLogResponse {

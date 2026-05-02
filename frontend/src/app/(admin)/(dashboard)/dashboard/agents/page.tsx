@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import {
     Bot, Clock, CheckCircle2, XCircle, Zap, AlertTriangle,
-    RefreshCw, Users, Play, Inbox,
+    RefreshCw, Users, Play, Inbox, CreditCard, ExternalLink,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -33,6 +33,8 @@ export default function AgentsDashboardPage() {
     const [unprocessedCount,   setUnprocessedCount]   = useState<number>(0)
     const [loading,            setLoading]            = useState(true)
     const [processing,         setProcessing]         = useState(false)
+
+    const creditsLow = tasks.some(t => t.errorMessage?.startsWith("CREDITS_LOW:"))
 
     const load = async () => {
         setLoading(true)
@@ -100,6 +102,42 @@ export default function AgentsDashboardPage() {
                     </Link>
                 </div>
             </div>
+
+            {/* Credits-low banner */}
+            {creditsLow && (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                    <div className="flex items-start gap-3">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-red-100 text-red-700 shrink-0 mt-0.5">
+                            <CreditCard size={18} />
+                        </div>
+                        <div className="flex-1">
+                            <p className="font-semibold text-red-900 text-sm">
+                                Anthropic credit balance too low — AI agents are paused
+                            </p>
+                            <p className="text-xs text-red-700 mt-1">
+                                Your Anthropic account has run out of credits. All agent tasks are failing until you top up.
+                                Follow these steps to restore agent functionality:
+                            </p>
+                            <ol className="text-xs text-red-700 mt-2 space-y-0.5 list-decimal list-inside">
+                                <li>Go to <strong>console.anthropic.com → Plans &amp; Billing</strong></li>
+                                <li>Add credits or upgrade your plan</li>
+                                <li>Come back and retry any failed tasks from the <strong>Approval Queue</strong></li>
+                            </ol>
+                        </div>
+                        <a
+                            href="https://console.anthropic.com/settings/billing"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="shrink-0"
+                        >
+                            <Button size="sm" className="text-white" style={{ backgroundColor: "#B91C1C" }}>
+                                <ExternalLink size={13} className="mr-1.5" />
+                                Top Up Credits
+                            </Button>
+                        </a>
+                    </div>
+                </div>
+            )}
 
             {/* Unprocessed contacts banner */}
             {unprocessedCount > 0 && (

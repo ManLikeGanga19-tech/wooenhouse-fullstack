@@ -152,6 +152,7 @@ public class EmailService(
                 FromAddress  = fromAddress,
                 ToAddress    = toAddress,
                 Subject      = msg.Subject ?? string.Empty,
+                HtmlBody     = msg.HtmlBody,
                 Status       = status,
                 ErrorMessage = error,
             });
@@ -379,5 +380,13 @@ public class EmailService(
         await SendAndLog(
             Build(SalesAddress, DisplayName, toEmail, subject, htmlBody),
             "agent", SalesAddress, toEmail);
+    }
+
+    public async Task ResendEmailAsync(string fromAddress, string toEmail, string subject, string htmlBody)
+    {
+        logger.LogInformation("[EMAIL] Resend → {To} | {Subject}", toEmail, subject);
+        await SendAndLog(
+            Build(fromAddress, DisplayName, toEmail, subject, htmlBody),
+            "resend", fromAddress, toEmail);
     }
 }
