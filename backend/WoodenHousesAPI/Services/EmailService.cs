@@ -22,6 +22,9 @@ public class EmailService(
     IConfiguration config,
     ILogger<EmailService> logger) : IEmailService
 {
+    // Encode any user-controlled value before injecting into an HTML email body
+    private static string H(string? v) => System.Net.WebUtility.HtmlEncode(v ?? string.Empty);
+
     private const string InfoAddress     = "info@woodenhouseskenya.com";
     private const string SalesAddress    = "sales@woodenhouseskenya.com";
     private const string AccountsAddress = "accounts@woodenhouseskenya.com";
@@ -171,24 +174,30 @@ public class EmailService(
         var adminAddress = config["Email:AdminNotifyAddress"] ?? "director@woodenhouseskenya.com";
         logger.LogInformation("[EMAIL] Contact alert → {Admin}", adminAddress);
 
+        var safeName    = H(fromName);
+        var safeEmail   = H(fromEmail);
+        var safeMessage = message != null
+            ? H(message).Replace("\r\n", "<br>").Replace("\n", "<br>")
+            : null;
+
         var content = $"""
             <h2 style="margin:0 0 20px;color:#8B5E3C;font-size:20px;font-weight:700;text-align:center;">New Enquiry Received</h2>
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
                    style="border-collapse:collapse;margin-bottom:24px;">
               <tr>
                 <td style="padding:11px 0;border-bottom:1px solid #F0E8DF;color:#888;font-size:13px;width:110px;">Name</td>
-                <td style="padding:11px 0;border-bottom:1px solid #F0E8DF;font-weight:600;font-size:14px;">{fromName}</td>
+                <td style="padding:11px 0;border-bottom:1px solid #F0E8DF;font-weight:600;font-size:14px;">{safeName}</td>
               </tr>
               <tr>
                 <td style="padding:11px 0;border-bottom:1px solid #F0E8DF;color:#888;font-size:13px;">Email</td>
                 <td style="padding:11px 0;border-bottom:1px solid #F0E8DF;font-size:14px;">
-                  <a href="mailto:{fromEmail}" style="color:#8B5E3C;text-decoration:none;">{fromEmail}</a>
+                  <a href="mailto:{safeEmail}" style="color:#8B5E3C;text-decoration:none;">{safeEmail}</a>
                 </td>
               </tr>
             </table>
             <p style="margin:0 0 8px;color:#555;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Message</p>
             <div style="background:#FAF7F4;border-left:4px solid #C49A6C;border-radius:0 6px 6px 0;padding:14px 18px;color:#444;font-size:14px;line-height:1.6;margin-bottom:28px;">
-              {(message ?? "<em style='color:#999;'>No message provided.</em>")}
+              {(safeMessage != null ? safeMessage : "<em style='color:#999;'>No message provided.</em>")}
             </div>
             <div style="text-align:center;">
               <a href="https://woodenhouseskenya.com/dashboard/contacts"
@@ -207,8 +216,10 @@ public class EmailService(
     {
         logger.LogInformation("[EMAIL] Auto-reply → {Client}", toEmail);
 
+        var safeName = H(toName);
+
         var content = $"""
-            <h2 style="margin:0 0 8px;color:#8B5E3C;font-size:22px;font-weight:700;text-align:center;">Thank you, {toName}!</h2>
+            <h2 style="margin:0 0 8px;color:#8B5E3C;font-size:22px;font-weight:700;text-align:center;">Thank you, {safeName}!</h2>
             <p style="margin:0 0 24px;color:#666;font-size:14px;text-align:center;">We have received your enquiry.</p>
 
             <div style="background:#FAF7F4;border-radius:8px;padding:24px;margin-bottom:28px;text-align:center;">
@@ -266,11 +277,15 @@ public class EmailService(
     public async Task SendNewsletterBroadcastAsync(
         IEnumerable<string> recipients, string subject, string content)
     {
-        // Convert plain text to HTML paragraphs (double newline = new paragraph)
+        // Convert plain text to HTML paragraphs — encode first, then convert newlines to <br>
         var paragraphs = content
             .Split(new[] { "\r\n\r\n", "\n\n" }, StringSplitOptions.RemoveEmptyEntries)
             .Select(p =>
-                $"<p style=\"margin:0 0 16px;font-size:15px;color:#444;line-height:1.7;\">{p.Trim().Replace("\r\n", "<br>").Replace("\n", "<br>")}</p>");
+            {
+                var encoded    = H(p.Trim());
+                var withBreaks = encoded.Replace("\r\n", "<br>").Replace("\n", "<br>");
+                return $"<p style=\"margin:0 0 16px;font-size:15px;color:#444;line-height:1.7;\">{withBreaks}</p>";
+            });
 
         var innerHtml = string.Join("", paragraphs);
         var htmlBody  = Layout(innerHtml);
@@ -287,7 +302,7 @@ public class EmailService(
     {
         logger.LogInformation("[EMAIL] Newsletter welcome → {Email}", toEmail);
 
-        var greeting = string.IsNullOrWhiteSpace(name) ? "Welcome" : $"Welcome, {name}!";
+        var greeting = string.IsNullOrWhiteSpace(name) ? "Welcome" : $"Welcome, {H(name)}!";
 
         var content = $"""
             <h2 style="margin:0 0 8px;color:#8B5E3C;font-size:22px;font-weight:700;text-align:center;">{greeting}</h2>
@@ -339,7 +354,8 @@ public class EmailService(
         var adminAddress = config["Email:AdminNotifyAddress"] ?? "director@woodenhouseskenya.com";
         logger.LogInformation("[EMAIL] Newsletter subscription alert → {Admin}", adminAddress);
 
-        var displayName = string.IsNullOrWhiteSpace(name) ? "—" : name;
+        var safeEmail   = H(email);
+        var displayName = string.IsNullOrWhiteSpace(name) ? "—" : H(name);
 
         var content = $"""
             <h2 style="margin:0 0 20px;color:#8B5E3C;font-size:20px;font-weight:700;text-align:center;">New Newsletter Subscriber</h2>
@@ -348,7 +364,7 @@ public class EmailService(
               <tr>
                 <td style="padding:11px 0;border-bottom:1px solid #F0E8DF;color:#888;font-size:13px;width:110px;">Email</td>
                 <td style="padding:11px 0;border-bottom:1px solid #F0E8DF;font-weight:600;font-size:14px;">
-                  <a href="mailto:{email}" style="color:#8B5E3C;text-decoration:none;">{email}</a>
+                  <a href="mailto:{safeEmail}" style="color:#8B5E3C;text-decoration:none;">{safeEmail}</a>
                 </td>
               </tr>
               <tr>

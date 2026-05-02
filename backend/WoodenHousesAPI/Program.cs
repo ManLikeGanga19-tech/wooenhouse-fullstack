@@ -61,6 +61,9 @@ try
     var jwtKey = builder.Configuration["Jwt:Key"]
         ?? throw new InvalidOperationException("Jwt:Key is not configured.");
 
+    if (jwtKey.Length < 64)
+        throw new InvalidOperationException("Jwt:Key must be at least 64 characters. Generate one with: openssl rand -base64 64");
+
     builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         .AddJwtBearer(options =>
         {

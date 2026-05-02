@@ -25,6 +25,23 @@ public class QuoteAgentService(
             .FirstOrDefaultAsync(q => q.Id == quoteId, ct)
             ?? throw new InvalidOperationException($"Quote {quoteId} not found.");
 
+        // Idempotency: return existing active task rather than creating a duplicate
+        var existing = await db.AgentTasks
+            .Where(t => t.AgentType  == AgentType
+                     && t.QuoteId    == quoteId
+                     && t.TriggerType == "quote_send"
+                     && t.Status != "failed"
+                     && t.Status != "rejected")
+            .OrderByDescending(t => t.CreatedAt)
+            .FirstOrDefaultAsync(ct);
+
+        if (existing != null)
+        {
+            log.LogInformation("[QuoteAgent] Skipping duplicate — quote {QuoteId} already has task {Id}",
+                quoteId, existing.Id);
+            return existing;
+        }
+
         // Generate the public token now so Claude can embed the real link in the draft
         if (string.IsNullOrEmpty(quote.PublicToken))
         {

@@ -4,16 +4,25 @@ namespace WoodenHousesAPI.DTOs.Contact;
 
 public class CreateContactRequest
 {
-    [Required, MinLength(2)]
+    [Required, MinLength(2), MaxLength(200)]
     public string  Name        { get; set; } = string.Empty;
 
-    [Required, EmailAddress]
+    [Required, EmailAddress, MaxLength(255)]
     public string  Email       { get; set; } = string.Empty;
 
+    [MaxLength(30)]
     public string? Phone       { get; set; }
+
+    [MaxLength(100)]
     public string? ServiceType { get; set; }
+
+    [MaxLength(200)]
     public string? Location    { get; set; }
+
+    [MaxLength(100)]
     public string? Budget      { get; set; }
+
+    [MaxLength(100)]
     public string? Timeline    { get; set; }
 
     [MaxLength(2000)]

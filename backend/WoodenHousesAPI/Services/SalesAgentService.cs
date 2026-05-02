@@ -52,6 +52,23 @@ public class SalesAgentService(
         var contact = await db.Contacts.FindAsync([contactId], ct)
             ?? throw new InvalidOperationException($"Contact {contactId} not found.");
 
+        // Idempotency: return existing active task rather than creating a duplicate
+        var existing = await db.AgentTasks
+            .Where(t => t.AgentType  == AgentType
+                     && t.ContactId  == contactId
+                     && t.TriggerType == triggerType
+                     && t.Status != "failed"
+                     && t.Status != "rejected")
+            .OrderByDescending(t => t.CreatedAt)
+            .FirstOrDefaultAsync(ct);
+
+        if (existing != null)
+        {
+            log.LogInformation("[SalesAgent] Skipping duplicate — contact {ContactId} trigger {Trigger} already has task {Id}",
+                contactId, triggerType, existing.Id);
+            return existing;
+        }
+
         // Persist the task record immediately — gives us an audit trail even if Claude fails
         var task = new AgentTask
         {

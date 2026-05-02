@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using WoodenHousesAPI.Data;
 
@@ -10,6 +11,7 @@ namespace WoodenHousesAPI.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/quotes/public")]
+[EnableRateLimiting("strict")]
 public class PublicQuotesController(AppDbContext db) : ControllerBase
 {
     [HttpGet("{token}")]

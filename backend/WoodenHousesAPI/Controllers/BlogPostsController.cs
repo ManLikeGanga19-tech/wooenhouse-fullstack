@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using WoodenHousesAPI.Data;
 
@@ -6,6 +7,7 @@ namespace WoodenHousesAPI.Controllers;
 
 [ApiController]
 [Route("api/blog")]
+[EnableRateLimiting("standard")]
 public class BlogPostsController(AppDbContext db) : ControllerBase
 {
     [HttpGet]

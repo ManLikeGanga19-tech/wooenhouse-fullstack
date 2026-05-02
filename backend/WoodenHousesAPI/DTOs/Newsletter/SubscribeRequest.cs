@@ -4,10 +4,13 @@ namespace WoodenHousesAPI.DTOs.Newsletter;
 
 public class SubscribeRequest
 {
-    [Required, EmailAddress]
+    [Required, EmailAddress, MaxLength(255)]
     public string  Email  { get; set; } = string.Empty;
 
+    [MaxLength(200)]
     public string? Name     { get; set; }
+
+    [MaxLength(50)]
     public string? Source   { get; set; } = "footer";
 
     // ── Spam detection (never stored, evaluated server-side) ──────────────────

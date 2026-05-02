@@ -211,14 +211,12 @@ export default function AgentsDashboardPage() {
             )}
 
             {/* Metric Cards */}
-            {metrics && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <MetricCard label="Pending Approval" value={metrics.pending}    icon={<Clock size={20} />}         color="#92400E" bg="#FEF9C3" />
-                    <MetricCard label="Auto-Sent Today"  value={metrics.totalToday} icon={<Zap size={20} />}           color="#065F46" bg="#D1FAE5" />
-                    <MetricCard label="This Week"        value={metrics.totalWeek}  icon={<Bot size={20} />}           color="#1D4ED8" bg="#DBEAFE" />
-                    <MetricCard label="Failed"           value={metrics.failed}     icon={<AlertTriangle size={20} />} color="#991B1B" bg="#FEE2E2" />
-                </div>
-            )}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <MetricCard label="Pending Approval" value={metrics?.pending    ?? 0} icon={<Clock size={20} />}         color="#92400E" bg="#FEF9C3" />
+                <MetricCard label="Auto-Sent Today"  value={metrics?.totalToday ?? 0} icon={<Zap size={20} />}           color="#065F46" bg="#D1FAE5" />
+                <MetricCard label="This Week"        value={metrics?.totalWeek  ?? 0} icon={<Bot size={20} />}           color="#1D4ED8" bg="#DBEAFE" />
+                <MetricCard label="Failed"           value={metrics?.failed     ?? 0} icon={<AlertTriangle size={20} />} color="#991B1B" bg="#FEE2E2" />
+            </div>
 
             {/* Quick Links */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using WoodenHousesAPI.Data;
 
@@ -9,6 +10,7 @@ namespace WoodenHousesAPI.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/projects")]
+[EnableRateLimiting("standard")]
 public class ProjectsController(AppDbContext db) : ControllerBase
 {
     [HttpGet]

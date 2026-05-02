@@ -120,17 +120,21 @@ public class AdminQuotesController(AppDbContext db, IEmailService emailService, 
         if (string.IsNullOrEmpty(quote.PublicToken))
             quote.PublicToken = Guid.NewGuid().ToString("N");
 
-        var frontendUrl = config["Frontend:Url"] ?? "https://woodenhouseskenya.com";
-        var publicLink  = $"{frontendUrl}/quote/{quote.PublicToken}";
-        var validUntil  = quote.CreatedAt.AddDays(quote.ValidityDays).ToString("MMMM dd, yyyy");
-        var projectRow  = string.IsNullOrEmpty(quote.HouseType) ? "" :
-            $"<tr><td style='padding:10px 0;border-bottom:1px solid #F0E8DF;color:#888;font-size:13px;'>Project</td><td style='padding:10px 0;border-bottom:1px solid #F0E8DF;font-size:14px;text-align:right;'>{quote.HouseType}{(string.IsNullOrEmpty(quote.HouseSize) ? "" : $" — {quote.HouseSize}")}</td></tr>";
+        var frontendUrl   = config["Frontend:Url"] ?? "https://woodenhouseskenya.com";
+        var publicLink    = $"{frontendUrl}/quote/{quote.PublicToken}";
+        var validUntil    = quote.CreatedAt.AddDays(quote.ValidityDays).ToString("MMMM dd, yyyy");
+        var safeName      = System.Net.WebUtility.HtmlEncode(quote.CustomerName);
+        var safeNumber    = System.Net.WebUtility.HtmlEncode(quote.QuoteNumber);
+        var safeHouseType = System.Net.WebUtility.HtmlEncode(quote.HouseType ?? "");
+        var safeHouseSize = System.Net.WebUtility.HtmlEncode(quote.HouseSize ?? "");
+        var projectRow    = string.IsNullOrEmpty(quote.HouseType) ? "" :
+            $"<tr><td style='padding:10px 0;border-bottom:1px solid #F0E8DF;color:#888;font-size:13px;'>Project</td><td style='padding:10px 0;border-bottom:1px solid #F0E8DF;font-size:14px;text-align:right;'>{safeHouseType}{(string.IsNullOrEmpty(quote.HouseSize) ? "" : $" — {safeHouseSize}")}</td></tr>";
 
         var quoteContent = $"""
             <h2 style="margin:0 0 8px;color:#8B5E3C;font-size:22px;font-weight:700;text-align:center;">Your Quotation is Ready</h2>
-            <p style="margin:0 0 24px;color:#666;font-size:14px;text-align:center;">Reference: <strong>{quote.QuoteNumber}</strong></p>
+            <p style="margin:0 0 24px;color:#666;font-size:14px;text-align:center;">Reference: <strong>{safeNumber}</strong></p>
 
-            <p style="margin:0 0 16px;font-size:15px;color:#333;">Dear <strong>{quote.CustomerName}</strong>,</p>
+            <p style="margin:0 0 16px;font-size:15px;color:#333;">Dear <strong>{safeName}</strong>,</p>
             <p style="margin:0 0 24px;font-size:14px;color:#555;line-height:1.7;">
               Thank you for your interest in Wooden Houses Kenya. Please find your personalised quotation details below.
             </p>
@@ -140,7 +144,7 @@ public class AdminQuotesController(AppDbContext db, IEmailService emailService, 
                    style="border-collapse:collapse;background:#FAF7F4;border-radius:8px;margin-bottom:24px;">
               <tr>
                 <td style="padding:12px 16px;border-bottom:1px solid #EAE0D5;color:#888;font-size:13px;width:140px;">Quotation #</td>
-                <td style="padding:12px 16px;border-bottom:1px solid #EAE0D5;font-weight:700;font-size:14px;text-align:right;">{quote.QuoteNumber}</td>
+                <td style="padding:12px 16px;border-bottom:1px solid #EAE0D5;font-weight:700;font-size:14px;text-align:right;">{safeNumber}</td>
               </tr>
               {projectRow}
               <tr>
