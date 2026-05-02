@@ -14,12 +14,23 @@ public class ClaudeSettings
 
 public record ClaudeMessage(string Role, string Content);
 
+public class ClaudeUsage
+{
+    [JsonPropertyName("input_tokens")]
+    public int InputTokens  { get; set; }
+
+    [JsonPropertyName("output_tokens")]
+    public int OutputTokens { get; set; }
+}
+
 public class ClaudeResponse
 {
     public List<ClaudeContent> Content { get; set; } = [];
 
     [JsonPropertyName("stop_reason")]
     public string StopReason { get; set; } = string.Empty;
+
+    public ClaudeUsage? Usage { get; set; }
 }
 
 public class ClaudeContent
@@ -28,9 +39,11 @@ public class ClaudeContent
     public string Text { get; set; } = string.Empty;
 }
 
+public record ClaudeResult(string Text, int InputTokens, int OutputTokens);
+
 public interface IClaudeService
 {
-    Task<string> CompleteAsync(string systemPrompt, string userMessage, CancellationToken ct = default);
+    Task<ClaudeResult> CompleteAsync(string systemPrompt, string userMessage, CancellationToken ct = default);
 }
 
 public class ClaudeService(
@@ -46,7 +59,7 @@ public class ClaudeService(
         DefaultIgnoreCondition      = JsonIgnoreCondition.WhenWritingNull,
     };
 
-    public async Task<string> CompleteAsync(
+    public async Task<ClaudeResult> CompleteAsync(
         string systemPrompt, string userMessage, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(_cfg.ApiKey))
@@ -108,8 +121,13 @@ public class ClaudeService(
             PropertyNameCaseInsensitive = true,
         });
 
-        var text = result?.Content.FirstOrDefault(c => c.Type == "text")?.Text ?? string.Empty;
-        log.LogInformation("[Claude] Response received — {Length} chars", text.Length);
-        return text;
+        var text         = result?.Content.FirstOrDefault(c => c.Type == "text")?.Text ?? string.Empty;
+        var inputTokens  = result?.Usage?.InputTokens  ?? 0;
+        var outputTokens = result?.Usage?.OutputTokens ?? 0;
+
+        log.LogInformation("[Claude] Response received — {Length} chars | tokens in={In} out={Out}",
+            text.Length, inputTokens, outputTokens);
+
+        return new ClaudeResult(text, inputTokens, outputTokens);
     }
 }

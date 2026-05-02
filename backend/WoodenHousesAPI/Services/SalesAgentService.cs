@@ -84,15 +84,17 @@ public class SalesAgentService(
 
         try
         {
-            var (subject, body) = await GenerateDraftAsync(contact, ct);
+            var draft = await GenerateDraftAsync(contact, ct);
 
-            task.DraftSubject = subject;
-            task.DraftBody    = body;
+            task.DraftSubject  = draft.Subject;
+            task.DraftBody     = draft.Body;
+            task.InputTokens   = draft.InputTokens;
+            task.OutputTokens  = draft.OutputTokens;
 
             if (mode == AgentDispatchMode.AutoSend)
             {
-                task.FinalSubject = subject;
-                task.FinalBody    = body;
+                task.FinalSubject = draft.Subject;
+                task.FinalBody    = draft.Body;
                 task.Status       = "auto_sent";
                 task.ApprovedBy   = "auto";
                 task.ExecutedAt   = DateTime.UtcNow;
@@ -103,7 +105,7 @@ public class SalesAgentService(
                 contact.UpdatedAt   = DateTime.UtcNow;
 
                 await db.SaveChangesAsync(ct);
-                await email.SendAgentEmailAsync(contact.Email, subject, body, ct);
+                await email.SendAgentEmailAsync(contact.Email, draft.Subject, draft.Body, ct);
 
                 log.LogInformation("[SalesAgent] Auto-sent reply to {Email} (task {Id})",
                     contact.Email, task.Id);
@@ -209,7 +211,9 @@ public class SalesAgentService(
 
     // ─── Private helpers ──────────────────────────────────────────────────────
 
-    private async Task<(string subject, string body)> GenerateDraftAsync(
+    private record DraftResult(string Subject, string Body, int InputTokens, int OutputTokens);
+
+    private async Task<DraftResult> GenerateDraftAsync(
         Contact contact, CancellationToken ct)
     {
         var taskContext = BuildTaskContext(contact);
@@ -238,8 +242,9 @@ public class SalesAgentService(
             The body should be a complete HTML email with simple inline styles only (no CSS classes).
             """;
 
-        var raw = await claude.CompleteAsync(systemPrompt, userMessage, ct);
-        return ParseDraft(raw);
+        var result = await claude.CompleteAsync(systemPrompt, userMessage, ct);
+        var (subject, body) = ParseDraft(result.Text);
+        return new DraftResult(subject, body, result.InputTokens, result.OutputTokens);
     }
 
     private static string BuildInputSummary(Contact c) =>

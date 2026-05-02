@@ -214,6 +214,8 @@ export const api = {
         apiClient.post<{ message: string }>("/api/admin/agents/run-followups"),
       runAccounts: () =>
         apiClient.post<{ message: string }>("/api/admin/agents/run-accounts"),
+      getHealth: () =>
+        apiClient.get<AgentHealth>("/api/admin/agents/health"),
       getContext: () =>
         apiClient.get<AgentContext[]>("/api/admin/agents/context"),
       updateContext: (key: string, value: string) =>
@@ -519,5 +521,51 @@ export interface AgentTasksParams {
   agentType?: string;
   page?:      number;
   pageSize?:  number;
+}
+
+export interface AgentHealthTokenBucket {
+  input:      number;
+  output:     number;
+  total:      number;
+  estCostUsd: number;
+}
+
+export interface AgentHealthAgentStats {
+  total:        number;
+  pending:      number;
+  autoSent:     number;
+  approved:     number;
+  rejected:     number;
+  failed:       number;
+  todayCount:   number;
+  weekCount:    number;
+  lastRunAt:    string | null;
+  inputTokens:  number;
+  outputTokens: number;
+  estCost:      number;
+}
+
+export interface AgentHealthAgent {
+  type:        string;
+  name:        string;
+  description: string;
+  schedule:    string;
+  stats:       AgentHealthAgentStats;
+}
+
+export interface AgentHealth {
+  generatedAt: string;
+  system: {
+    uptimeSeconds: number;
+    memoryMb:      number;
+    cpuPercent:    number;
+    processors:    number;
+  };
+  tokens: {
+    today:   AgentHealthTokenBucket;
+    week:    AgentHealthTokenBucket;
+    allTime: AgentHealthTokenBucket;
+  };
+  agents: AgentHealthAgent[];
 }
 

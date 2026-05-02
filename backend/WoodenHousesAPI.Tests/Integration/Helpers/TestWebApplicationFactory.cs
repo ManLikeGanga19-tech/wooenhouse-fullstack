@@ -232,5 +232,14 @@ internal sealed class NullEmailService : IEmailService
 
     public Task SendNewsletterBroadcastAsync(IEnumerable<string> recipients, string subject, string content)
         => Task.CompletedTask;
+
+    public Task SendAgentEmailAsync(string toEmail, string subject, string htmlBody, CancellationToken ct = default)
+        => Task.CompletedTask;
+
+    public Task ResendEmailAsync(string emailLogId, string toEmail, string subject, string htmlBody)
+        => Task.CompletedTask;
+
+    public Task SendAdminReportAsync(string toEmail, string subject, string htmlBody)
+        => Task.CompletedTask;
 }
 

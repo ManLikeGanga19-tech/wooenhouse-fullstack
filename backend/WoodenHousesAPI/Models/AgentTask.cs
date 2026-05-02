@@ -36,6 +36,10 @@ public class AgentTask
     public string?  RejectedBy    { get; set; }
     public string?  RejectionNote { get; set; }
 
+    // Token usage captured from Anthropic API response
+    public int       InputTokens  { get; set; } = 0;
+    public int       OutputTokens { get; set; } = 0;
+
     public DateTime  CreatedAt    { get; set; } = DateTime.UtcNow;
     public DateTime? ExecutedAt   { get; set; }
 

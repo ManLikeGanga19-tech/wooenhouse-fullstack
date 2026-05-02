@@ -1,7 +1,7 @@
 // src/components/layout/Header.tsx
 "use client";
 
-import { Menu, LogOut, User } from "lucide-react";
+import { Menu, LogOut, User, Sun, Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
     DropdownMenu,
@@ -14,6 +14,7 @@ import {
 import { useAuthStore } from "@/lib/store/authStore";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useUIStore } from "@/lib/store/uiStore";
+import { useThemeStore } from "@/lib/store/themeStore";
 import NotificationBell from "@/components/layout/NotificationBell";
 import InstallPWA from "@/components/admin/InstallPWA";
 
@@ -26,7 +27,8 @@ export default function Header({ title }: HeaderProps) {
     const searchParams = useSearchParams();
     const logout       = useAuthStore((state) => state.logout);
     const user         = useAuthStore((state) => state.user);
-    const setSidebarOpen = useUIStore((state) => state.setSidebarOpen);
+    const setSidebarOpen  = useUIStore((state) => state.setSidebarOpen);
+    const { theme, toggleTheme } = useThemeStore();
 
     const qs = searchParams.toString();
 
@@ -37,7 +39,7 @@ export default function Header({ title }: HeaderProps) {
 
     return (
         <header
-            className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b border-gray-200 bg-white px-4 md:px-6"
+            className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 md:px-6"
             style={{ paddingTop: "env(safe-area-inset-top)" }}
         >
             {/* Desktop-only menu button (mobile uses BottomTabBar) */}
@@ -62,6 +64,17 @@ export default function Header({ title }: HeaderProps) {
 
             {/* PWA install prompt */}
             <InstallPWA />
+
+            {/* Theme toggle */}
+            <Button
+                variant="ghost"
+                size="icon"
+                onClick={toggleTheme}
+                className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+                title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+                {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+            </Button>
 
             {/* Notifications */}
             <NotificationBell />

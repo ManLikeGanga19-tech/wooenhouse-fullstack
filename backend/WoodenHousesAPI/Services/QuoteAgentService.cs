@@ -68,9 +68,11 @@ public class QuoteAgentService(
 
         try
         {
-            var (subject, body) = await GenerateDraftAsync(quote, publicLink, ct);
-            task.DraftSubject = subject;
-            task.DraftBody    = body;
+            var draft = await GenerateDraftAsync(quote, publicLink, ct);
+            task.DraftSubject  = draft.Subject;
+            task.DraftBody     = draft.Body;
+            task.InputTokens   = draft.InputTokens;
+            task.OutputTokens  = draft.OutputTokens;
             await db.SaveChangesAsync(ct);
 
             log.LogInformation("[QuoteAgent] Draft queued for {QuoteNumber} → {Email} (task {Id})",
@@ -87,7 +89,9 @@ public class QuoteAgentService(
         return task;
     }
 
-    private async Task<(string subject, string body)> GenerateDraftAsync(
+    private record DraftResult(string Subject, string Body, int InputTokens, int OutputTokens);
+
+    private async Task<DraftResult> GenerateDraftAsync(
         Quote quote, string publicLink, CancellationToken ct)
     {
         var lineItemsSummary = quote.LineItems.Any()
@@ -141,8 +145,9 @@ public class QuoteAgentService(
             Return ONLY valid JSON (no markdown fences): "subject" (string) and "body" (string, a complete HTML email with inline styles only — no CSS classes).
             """;
 
-        var raw = await claude.CompleteAsync(systemPrompt, userMessage, ct);
-        return ParseDraft(raw);
+        var result = await claude.CompleteAsync(systemPrompt, userMessage, ct);
+        var (subject, body) = ParseDraft(result.Text);
+        return new DraftResult(subject, body, result.InputTokens, result.OutputTokens);
     }
 
     private static (string subject, string body) ParseDraft(string raw)

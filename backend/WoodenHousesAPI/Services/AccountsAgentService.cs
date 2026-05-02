@@ -75,6 +75,8 @@ public class AccountsAgentService(
         return new AccountsBatchResult(remindersQueued, remindersFailed, reportSent);
     }
 
+    private record DraftResult(string Subject, string Body, int InputTokens, int OutputTokens);
+
     // ─── Payment reminder ─────────────────────────────────────────────────────
 
     private async Task<string> ProcessPaymentReminderAsync(Quote quote, CancellationToken ct)
@@ -94,9 +96,11 @@ public class AccountsAgentService(
 
         try
         {
-            var (subject, body) = await GeneratePaymentReminderDraftAsync(quote, ct);
-            task.DraftSubject = subject;
-            task.DraftBody    = body;
+            var draft = await GeneratePaymentReminderDraftAsync(quote, ct);
+            task.DraftSubject  = draft.Subject;
+            task.DraftBody     = draft.Body;
+            task.InputTokens   = draft.InputTokens;
+            task.OutputTokens  = draft.OutputTokens;
             await db.SaveChangesAsync(ct);
             log.LogInformation("[AccountsAgent] payment_reminder queued for {Email} (task {Id})",
                 quote.CustomerEmail, task.Id);
@@ -112,7 +116,7 @@ public class AccountsAgentService(
         }
     }
 
-    private async Task<(string subject, string body)> GeneratePaymentReminderDraftAsync(
+    private async Task<DraftResult> GeneratePaymentReminderDraftAsync(
         Quote quote, CancellationToken ct)
     {
         var daysSince = quote.AcceptedAt.HasValue
@@ -152,8 +156,9 @@ public class AccountsAgentService(
             Return ONLY valid JSON (no markdown fences): "subject" (string) and "body" (string, complete HTML email with inline styles only).
             """;
 
-        var raw = await claude.CompleteAsync(systemPrompt, userMessage, ct);
-        return ParseDraft(raw);
+        var result = await claude.CompleteAsync(systemPrompt, userMessage, ct);
+        var (subject, body) = ParseDraft(result.Text);
+        return new DraftResult(subject, body, result.InputTokens, result.OutputTokens);
     }
 
     // ─── Weekly report ────────────────────────────────────────────────────────

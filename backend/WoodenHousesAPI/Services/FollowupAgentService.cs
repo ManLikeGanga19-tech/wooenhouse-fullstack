@@ -169,6 +169,8 @@ public class FollowupAgentService(
         return new FollowupBatchResult(queued, skipped, failed);
     }
 
+    private record DraftResult(string Subject, string Body, int InputTokens, int OutputTokens);
+
     // ─── Contact follow-up ────────────────────────────────────────────────────
 
     private async Task<string> ProcessContactFollowupAsync(
@@ -188,9 +190,11 @@ public class FollowupAgentService(
 
         try
         {
-            var (subject, body) = await GenerateContactFollowupDraftAsync(contact, triggerType, ct);
-            task.DraftSubject = subject;
-            task.DraftBody    = body;
+            var draft = await GenerateContactFollowupDraftAsync(contact, triggerType, ct);
+            task.DraftSubject  = draft.Subject;
+            task.DraftBody     = draft.Body;
+            task.InputTokens   = draft.InputTokens;
+            task.OutputTokens  = draft.OutputTokens;
             await db.SaveChangesAsync(ct);
             log.LogInformation("[FollowupAgent] {Trigger} queued for {Email} (task {Id})",
                 triggerType, contact.Email, task.Id);
@@ -206,7 +210,7 @@ public class FollowupAgentService(
         }
     }
 
-    private async Task<(string subject, string body)> GenerateContactFollowupDraftAsync(
+    private async Task<DraftResult> GenerateContactFollowupDraftAsync(
         Contact contact, string triggerType, CancellationToken ct)
     {
         var daysSince = contact.ContactedAt.HasValue
@@ -249,8 +253,9 @@ public class FollowupAgentService(
             Return ONLY valid JSON (no markdown fences): "subject" (string) and "body" (string, complete HTML email with inline styles only).
             """;
 
-        var raw = await claude.CompleteAsync(systemPrompt, userMessage, ct);
-        return ParseDraft(raw);
+        var result = await claude.CompleteAsync(systemPrompt, userMessage, ct);
+        var (subject, body) = ParseDraft(result.Text);
+        return new DraftResult(subject, body, result.InputTokens, result.OutputTokens);
     }
 
     // ─── Quote reminder ───────────────────────────────────────────────────────
@@ -272,9 +277,11 @@ public class FollowupAgentService(
 
         try
         {
-            var (subject, body) = await GenerateQuoteReminderDraftAsync(quote, ct);
-            task.DraftSubject = subject;
-            task.DraftBody    = body;
+            var draft = await GenerateQuoteReminderDraftAsync(quote, ct);
+            task.DraftSubject  = draft.Subject;
+            task.DraftBody     = draft.Body;
+            task.InputTokens   = draft.InputTokens;
+            task.OutputTokens  = draft.OutputTokens;
             await db.SaveChangesAsync(ct);
             log.LogInformation("[FollowupAgent] quote_reminder queued for {Email} (task {Id})",
                 quote.CustomerEmail, task.Id);
@@ -290,7 +297,7 @@ public class FollowupAgentService(
         }
     }
 
-    private async Task<(string subject, string body)> GenerateQuoteReminderDraftAsync(
+    private async Task<DraftResult> GenerateQuoteReminderDraftAsync(
         Quote quote, CancellationToken ct)
     {
         var daysSince = quote.SentAt.HasValue
@@ -327,8 +334,9 @@ public class FollowupAgentService(
             Return ONLY valid JSON (no markdown fences): "subject" (string) and "body" (string, complete HTML email with inline styles only).
             """;
 
-        var raw = await claude.CompleteAsync(systemPrompt, userMessage, ct);
-        return ParseDraft(raw);
+        var result = await claude.CompleteAsync(systemPrompt, userMessage, ct);
+        var (subject, body) = ParseDraft(result.Text);
+        return new DraftResult(subject, body, result.InputTokens, result.OutputTokens);
     }
 
     // ─── Viewed-quote follow-up ───────────────────────────────────────────────
@@ -350,9 +358,11 @@ public class FollowupAgentService(
 
         try
         {
-            var (subject, body) = await GenerateViewedQuoteFollowupDraftAsync(quote, ct);
-            task.DraftSubject = subject;
-            task.DraftBody    = body;
+            var draft = await GenerateViewedQuoteFollowupDraftAsync(quote, ct);
+            task.DraftSubject  = draft.Subject;
+            task.DraftBody     = draft.Body;
+            task.InputTokens   = draft.InputTokens;
+            task.OutputTokens  = draft.OutputTokens;
             await db.SaveChangesAsync(ct);
             log.LogInformation("[FollowupAgent] viewed_quote_followup queued for {Email} (task {Id})",
                 quote.CustomerEmail, task.Id);
@@ -368,7 +378,7 @@ public class FollowupAgentService(
         }
     }
 
-    private async Task<(string subject, string body)> GenerateViewedQuoteFollowupDraftAsync(
+    private async Task<DraftResult> GenerateViewedQuoteFollowupDraftAsync(
         Quote quote, CancellationToken ct)
     {
         var daysSinceViewed = quote.ViewedAt.HasValue
@@ -408,8 +418,9 @@ public class FollowupAgentService(
             Return ONLY valid JSON (no markdown fences): "subject" (string) and "body" (string, complete HTML email with inline styles only).
             """;
 
-        var raw = await claude.CompleteAsync(systemPrompt, userMessage, ct);
-        return ParseDraft(raw);
+        var result = await claude.CompleteAsync(systemPrompt, userMessage, ct);
+        var (subject, body) = ParseDraft(result.Text);
+        return new DraftResult(subject, body, result.InputTokens, result.OutputTokens);
     }
 
     // ─── Shared helper ────────────────────────────────────────────────────────

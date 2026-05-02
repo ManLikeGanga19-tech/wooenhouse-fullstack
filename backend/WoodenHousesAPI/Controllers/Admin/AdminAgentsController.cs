@@ -589,6 +589,152 @@ public class AdminAgentsController(
 
         return NoContent();
     }
+
+    // ─── Health / Telemetry ───────────────────────────────────────────────────
+
+    [HttpGet("health")]
+    public async Task<IActionResult> GetHealth()
+    {
+        var now       = DateTime.UtcNow;
+        var todayUtc  = now.Date;
+        var weekAgo   = now.AddDays(-7);
+
+        // ── System metrics ──────────────────────────────────────────────────
+        var proc    = System.Diagnostics.Process.GetCurrentProcess();
+        var uptimeSec = (now - proc.StartTime.ToUniversalTime()).TotalSeconds;
+        var memoryMb  = proc.WorkingSet64 / 1024.0 / 1024.0;
+
+        // CPU %: average since process start across all logical CPUs
+        var cpuPercent = proc.TotalProcessorTime.TotalSeconds
+            / (uptimeSec * Environment.ProcessorCount) * 100.0;
+
+        // ── Token aggregates ────────────────────────────────────────────────
+        var tokenAgg = await db.AgentTasks
+            .Where(t => t.InputTokens > 0 || t.OutputTokens > 0)
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                InputTotal   = (long)g.Sum(t => t.InputTokens),
+                OutputTotal  = (long)g.Sum(t => t.OutputTokens),
+            })
+            .FirstOrDefaultAsync();
+
+        var tokenAggToday = await db.AgentTasks
+            .Where(t => t.CreatedAt >= todayUtc && (t.InputTokens > 0 || t.OutputTokens > 0))
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                InputTotal  = (long)g.Sum(t => t.InputTokens),
+                OutputTotal = (long)g.Sum(t => t.OutputTokens),
+            })
+            .FirstOrDefaultAsync();
+
+        var tokenAggWeek = await db.AgentTasks
+            .Where(t => t.CreatedAt >= weekAgo && (t.InputTokens > 0 || t.OutputTokens > 0))
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                InputTotal  = (long)g.Sum(t => t.InputTokens),
+                OutputTotal = (long)g.Sum(t => t.OutputTokens),
+            })
+            .FirstOrDefaultAsync();
+
+        // Sonnet 4.6 pricing: $3/M input, $15/M output
+        static double EstimateCost(long input, long output) =>
+            input * 0.000003 + output * 0.000015;
+
+        // ── Per-agent stats ─────────────────────────────────────────────────
+        var agentTypes = new[]
+        {
+            new { Type = "sales",    Name = "Sales Agent",    Description = "Responds to new contact inquiries",      Schedule = "On contact form submission" },
+            new { Type = "quote",    Name = "Quote Agent",    Description = "Drafts cover emails for client quotes",   Schedule = "On quote generation" },
+            new { Type = "followup", Name = "Follow-up Agent",Description = "Follows up unanswered contacts & quotes", Schedule = "Daily at 08:00 EAT" },
+            new { Type = "accounts", Name = "Accounts Agent", Description = "Payment reminders & weekly report",       Schedule = "Every Monday at 09:00 EAT" },
+        };
+
+        var taskStats = await db.AgentTasks
+            .GroupBy(t => t.AgentType)
+            .Select(g => new
+            {
+                AgentType      = g.Key,
+                Total          = g.Count(),
+                Pending        = g.Count(t => t.Status == "pending_approval"),
+                AutoSent       = g.Count(t => t.Status == "auto_sent"),
+                Approved       = g.Count(t => t.Status == "approved"),
+                Rejected       = g.Count(t => t.Status == "rejected"),
+                Failed         = g.Count(t => t.Status == "failed"),
+                TodayCount     = g.Count(t => t.CreatedAt >= todayUtc),
+                WeekCount      = g.Count(t => t.CreatedAt >= weekAgo),
+                LastRunAt      = g.Max(t => (DateTime?)t.CreatedAt),
+                InputTokens    = (long)g.Sum(t => t.InputTokens),
+                OutputTokens   = (long)g.Sum(t => t.OutputTokens),
+            })
+            .ToListAsync();
+
+        var agents = agentTypes.Select(a =>
+        {
+            var s = taskStats.FirstOrDefault(x => x.AgentType == a.Type);
+            return new
+            {
+                a.Type,
+                a.Name,
+                a.Description,
+                a.Schedule,
+                Stats = new
+                {
+                    Total        = s?.Total        ?? 0,
+                    Pending      = s?.Pending      ?? 0,
+                    AutoSent     = s?.AutoSent     ?? 0,
+                    Approved     = s?.Approved     ?? 0,
+                    Rejected     = s?.Rejected     ?? 0,
+                    Failed       = s?.Failed       ?? 0,
+                    TodayCount   = s?.TodayCount   ?? 0,
+                    WeekCount    = s?.WeekCount    ?? 0,
+                    LastRunAt    = s?.LastRunAt,
+                    InputTokens  = s?.InputTokens  ?? 0L,
+                    OutputTokens = s?.OutputTokens ?? 0L,
+                    EstCost      = EstimateCost(s?.InputTokens ?? 0L, s?.OutputTokens ?? 0L),
+                },
+            };
+        });
+
+        return Ok(new
+        {
+            GeneratedAt = now,
+            System = new
+            {
+                UptimeSeconds = (long)uptimeSec,
+                MemoryMb      = Math.Round(memoryMb, 1),
+                CpuPercent    = Math.Round(Math.Min(cpuPercent, 100.0), 1),
+                Processors    = Environment.ProcessorCount,
+            },
+            Tokens = new
+            {
+                Today = new
+                {
+                    Input     = tokenAggToday?.InputTotal   ?? 0L,
+                    Output    = tokenAggToday?.OutputTotal  ?? 0L,
+                    Total     = (tokenAggToday?.InputTotal  ?? 0L) + (tokenAggToday?.OutputTotal ?? 0L),
+                    EstCostUsd = EstimateCost(tokenAggToday?.InputTotal ?? 0L, tokenAggToday?.OutputTotal ?? 0L),
+                },
+                Week = new
+                {
+                    Input     = tokenAggWeek?.InputTotal   ?? 0L,
+                    Output    = tokenAggWeek?.OutputTotal  ?? 0L,
+                    Total     = (tokenAggWeek?.InputTotal  ?? 0L) + (tokenAggWeek?.OutputTotal ?? 0L),
+                    EstCostUsd = EstimateCost(tokenAggWeek?.InputTotal ?? 0L, tokenAggWeek?.OutputTotal ?? 0L),
+                },
+                AllTime = new
+                {
+                    Input     = tokenAgg?.InputTotal   ?? 0L,
+                    Output    = tokenAgg?.OutputTotal  ?? 0L,
+                    Total     = (tokenAgg?.InputTotal  ?? 0L) + (tokenAgg?.OutputTotal ?? 0L),
+                    EstCostUsd = EstimateCost(tokenAgg?.InputTotal ?? 0L, tokenAgg?.OutputTotal ?? 0L),
+                },
+            },
+            Agents = agents,
+        });
+    }
 }
 
 // ─── Request DTOs ─────────────────────────────────────────────────────────────

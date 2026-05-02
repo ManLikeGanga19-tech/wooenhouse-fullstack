@@ -16,8 +16,8 @@ body:not(.aos-init) [data-aos] {
     pointer-events: auto !important;
 }
 
-/* Force light mode - disable dark mode */
-@custom-variant dark (&:is(.force-light-mode-disabled *));
+/* Dark mode is scoped to the .dark class on the dashboard wrapper */
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme inline {
   --color-background: var(--background);
@@ -94,66 +94,51 @@ body:not(.aos-init) [data-aos] {
   --sidebar-ring: oklch(0.708 0 0);
 }
 
-/* Force light mode styles even if .dark class is applied */
-.dark,
-html.dark,
-body.dark {
-  --background: oklch(1 0 0) !important;
-  --foreground: oklch(0.145 0 0) !important;
-  --card: oklch(1 0 0) !important;
-  --card-foreground: oklch(0.145 0 0) !important;
-  --popover: oklch(1 0 0) !important;
-  --popover-foreground: oklch(0.145 0 0) !important;
-  --primary: oklch(0.205 0 0) !important;
-  --primary-foreground: oklch(0.985 0 0) !important;
-  --secondary: oklch(0.97 0 0) !important;
-  --secondary-foreground: oklch(0.205 0 0) !important;
-  --muted: oklch(0.97 0 0) !important;
-  --muted-foreground: oklch(0.556 0 0) !important;
-  --accent: oklch(0.97 0 0) !important;
-  --accent-foreground: oklch(0.205 0 0) !important;
-  --destructive: oklch(0.577 0.245 27.325) !important;
-  --border: oklch(0.922 0 0) !important;
-  --input: oklch(0.922 0 0) !important;
-  --ring: oklch(0.708 0 0) !important;
-  --chart-1: oklch(0.646 0.222 41.116) !important;
-  --chart-2: oklch(0.6 0.118 184.704) !important;
-  --chart-3: oklch(0.398 0.07 227.392) !important;
-  --chart-4: oklch(0.828 0.189 84.429) !important;
-  --chart-5: oklch(0.769 0.188 70.08) !important;
-  --sidebar: oklch(0.985 0 0) !important;
-  --sidebar-foreground: oklch(0.145 0 0) !important;
-  --sidebar-primary: oklch(0.205 0 0) !important;
-  --sidebar-primary-foreground: oklch(0.985 0 0) !important;
-  --sidebar-accent: oklch(0.97 0 0) !important;
-  --sidebar-accent-foreground: oklch(0.205 0 0) !important;
-  --sidebar-border: oklch(0.922 0 0) !important;
-  --sidebar-ring: oklch(0.708 0 0) !important;
+/* Dark theme CSS variables — applied when .dark class is on the dashboard wrapper */
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.19 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.19 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.985 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(0.269 0 0);
+  --input: oklch(0.269 0 0);
+  --ring: oklch(0.439 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(0.269 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+  color-scheme: dark;
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
-  
-  /* Force white background on everything */
+
   html,
   html.light,
-  html.dark,
   body {
-    @apply bg-white! text-gray-900!;
-  }
-  
-  /* Ensure all main content areas are white */
-  #__next,
-  main,
-  [data-radix-dialog-content] {
-    @apply bg-white!;
-  }
-  
-  /* Override any dark mode classes */
-  .dark {
-    color-scheme: light !important;
+    @apply bg-white text-gray-900;
   }
 }
 html, body {

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import {
     Bot, Clock, CheckCircle2, XCircle, Zap, AlertTriangle,
-    RefreshCw, Users, Play, Inbox, CreditCard, ExternalLink,
+    RefreshCw, Users, Play, Inbox, CreditCard, ExternalLink, Activity,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -219,7 +219,7 @@ export default function AgentsDashboardPage() {
             </div>
 
             {/* Quick Links */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <QuickLink
                     href="/dashboard/agents/queue"
                     icon={<Clock size={20} />}
@@ -232,6 +232,12 @@ export default function AgentsDashboardPage() {
                     icon={<Bot size={20} />}
                     title="Agent Context"
                     description="Edit the business knowledge that feeds every agent prompt"
+                />
+                <QuickLink
+                    href="/dashboard/agents/health"
+                    icon={<Activity size={20} />}
+                    title="Agent Health"
+                    description="Live metrics: token usage, CPU, memory, per-agent stats"
                 />
                 <QuickLink
                     href="/dashboard/contacts"
