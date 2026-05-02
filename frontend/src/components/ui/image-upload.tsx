@@ -10,9 +10,10 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 interface ImageUploadProps {
   value: string;
   onChange: (url: string) => void;
+  onBusyChange?: (busy: boolean) => void;
 }
 
-export function ImageUpload({ value, onChange }: ImageUploadProps) {
+export function ImageUpload({ value, onChange, onBusyChange }: ImageUploadProps) {
   const inputRef   = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
 
@@ -22,6 +23,7 @@ export function ImageUpload({ value, onChange }: ImageUploadProps) {
 
   const handleFile = async (file: File) => {
     setUploading(true);
+    onBusyChange?.(true);
     try {
       const { data } = await api.admin.upload.image(file);
       onChange(data.url);
@@ -29,6 +31,7 @@ export function ImageUpload({ value, onChange }: ImageUploadProps) {
       toast.error("Upload failed", { description: err instanceof Error ? err.message : undefined });
     } finally {
       setUploading(false);
+      onBusyChange?.(false);
     }
   };
 

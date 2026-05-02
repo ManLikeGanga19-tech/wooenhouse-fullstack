@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useRouter, useParams, useSearchParams } from "next/navigation"
 import { ArrowLeft, Save, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -23,8 +23,11 @@ export default function EditBlogPostPage() {
     const qs           = searchParams.toString()
     const withQs       = (p: string) => qs ? `${p}?${qs}` : p
 
-    const [loading, setLoading] = useState(true)
-    const [saving,  setSaving]  = useState(false)
+    const [loading,     setLoading]     = useState(true)
+    const [saving,      setSaving]      = useState(false)
+    const [uploadBusy,  setUploadBusy]  = useState(false)
+    const [isDirty,     setIsDirty]     = useState(false)
+    const savedRef = useRef(false)
     const [form, setForm] = useState({
         title:           "",
         slug:            "",
@@ -64,8 +67,18 @@ export default function EditBlogPostPage() {
             .finally(() => setLoading(false))
     }, [id])
 
-    const set = (key: string, value: unknown) =>
+    // Warn about unsaved changes on accidental page refresh / tab close
+    useEffect(() => {
+        if (!isDirty) return
+        const guard = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = '' }
+        window.addEventListener('beforeunload', guard)
+        return () => window.removeEventListener('beforeunload', guard)
+    }, [isDirty])
+
+    const set = (key: string, value: unknown) => {
+        setIsDirty(true)
         setForm(prev => ({ ...prev, [key]: value }))
+    }
 
     const handleSave = async () => {
         if (!form.title.trim())   { toast.error("Title is required");   return }
@@ -77,6 +90,8 @@ export default function EditBlogPostPage() {
                 ? JSON.stringify(form.tags.split(",").map(t => t.trim()).filter(Boolean))
                 : undefined
             await api.admin.blog.update(id, { ...form, tags: tagsJson })
+            savedRef.current = true
+            setIsDirty(false)
             toast.success("Post saved")
             router.push(withQs("/dashboard/blog"))
         } catch (err) {
@@ -121,12 +136,12 @@ export default function EditBlogPostPage() {
                     </Button>
                 )}
                 <Button
-                    onClick={handleSave} disabled={saving}
+                    onClick={handleSave} disabled={saving || uploadBusy}
                     className="text-white shrink-0"
                     style={{ backgroundColor: "#8B5E3C" }}
                 >
                     <Save size={15} className="mr-1.5" />
-                    {saving ? "Saving…" : "Save Changes"}
+                    {uploadBusy ? "Uploading…" : saving ? "Saving…" : "Save Changes"}
                 </Button>
             </div>
 
@@ -241,7 +256,11 @@ export default function EditBlogPostPage() {
 
                     <div className="space-y-1.5 pt-1">
                         <Label className="text-xs font-semibold text-gray-600">Cover Image</Label>
-                        <ImageUpload value={form.coverImage} onChange={url => set("coverImage", url)} />
+                        <ImageUpload
+                            value={form.coverImage}
+                            onChange={url => set("coverImage", url)}
+                            onBusyChange={setUploadBusy}
+                        />
                     </div>
                 </div>
 

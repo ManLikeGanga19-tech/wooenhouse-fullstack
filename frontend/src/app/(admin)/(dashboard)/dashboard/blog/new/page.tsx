@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { ArrowLeft, Save } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -21,7 +21,9 @@ export default function NewBlogPostPage() {
     const qs           = searchParams.toString()
     const withQs       = (p: string) => qs ? `${p}?${qs}` : p
 
-    const [saving, setSaving] = useState(false)
+    const [saving,     setSaving]     = useState(false)
+    const [uploadBusy, setUploadBusy] = useState(false)
+    const [isDirty,    setIsDirty]    = useState(false)
     const [form, setForm] = useState({
         title:           "",
         slug:            "",
@@ -36,11 +38,22 @@ export default function NewBlogPostPage() {
         status:          "draft",
     })
 
-    const set = (key: string, value: unknown) =>
+    // Warn about unsaved changes on accidental page refresh / tab close
+    useEffect(() => {
+        if (!isDirty) return
+        const guard = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = '' }
+        window.addEventListener('beforeunload', guard)
+        return () => window.removeEventListener('beforeunload', guard)
+    }, [isDirty])
+
+    const set = (key: string, value: unknown) => {
+        setIsDirty(true)
         setForm(prev => ({ ...prev, [key]: value }))
+    }
 
     const handleTitle = (title: string) => {
         const slug = title.toLowerCase().replace(/[^a-z0-9\s]/g, "").trim().replace(/\s+/g, "-")
+        setIsDirty(true)
         setForm(prev => ({ ...prev, title, slug }))
     }
 
@@ -54,6 +67,7 @@ export default function NewBlogPostPage() {
                 ? JSON.stringify(form.tags.split(",").map(t => t.trim()).filter(Boolean))
                 : undefined
             await api.admin.blog.create({ ...form, tags: tagsJson })
+            setIsDirty(false)
             toast.success("Post created")
             router.push(withQs("/dashboard/blog"))
         } catch (err) {
@@ -77,12 +91,12 @@ export default function NewBlogPostPage() {
                 </Button>
                 <h1 className="flex-1 text-xl font-bold" style={{ color: "#8B5E3C" }}>New Post</h1>
                 <Button
-                    onClick={handleSave} disabled={saving}
+                    onClick={handleSave} disabled={saving || uploadBusy}
                     className="text-white shrink-0"
                     style={{ backgroundColor: "#8B5E3C" }}
                 >
                     <Save size={15} className="mr-1.5" />
-                    {saving ? "Saving…" : "Save Post"}
+                    {uploadBusy ? "Uploading…" : saving ? "Saving…" : "Save Post"}
                 </Button>
             </div>
 
@@ -198,7 +212,11 @@ export default function NewBlogPostPage() {
 
                     <div className="space-y-1.5 pt-1">
                         <Label className="text-xs font-semibold text-gray-600">Cover Image</Label>
-                        <ImageUpload value={form.coverImage} onChange={url => set("coverImage", url)} />
+                        <ImageUpload
+                            value={form.coverImage}
+                            onChange={url => set("coverImage", url)}
+                            onBusyChange={setUploadBusy}
+                        />
                     </div>
                 </div>
 
