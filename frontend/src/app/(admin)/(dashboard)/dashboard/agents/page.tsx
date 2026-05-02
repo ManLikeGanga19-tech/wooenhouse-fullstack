@@ -34,9 +34,10 @@ const TRIGGER_LABELS: Record<string, string> = {
     quote_send:       "Quote cover",
     followup_1:       "Follow-up 1",
     followup_2:       "Follow-up 2",
-    quote_reminder:   "Quote reminder",
-    payment_reminder: "Payment reminder",
-    scheduled:        "Scheduled",
+    quote_reminder:        "Quote reminder",
+    viewed_quote_followup: "Viewed — no decision",
+    payment_reminder:      "Payment reminder",
+    scheduled:             "Scheduled",
 }
 
 export default function AgentsDashboardPage() {

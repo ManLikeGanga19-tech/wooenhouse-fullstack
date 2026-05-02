@@ -222,6 +222,13 @@ export const api = {
         apiClient.post<AgentContext>("/api/admin/agents/context", data),
       deleteContext: (key: string) =>
         apiClient.delete(`/api/admin/agents/context/${key}`),
+      uploadContextFile: (file: File) => {
+        const fd = new FormData()
+        fd.append("file", file)
+        return apiClient.post<AgentContext>("/api/admin/agents/context/upload", fd, {
+          headers: { "Content-Type": "multipart/form-data" },
+        })
+      },
     },
 
   },

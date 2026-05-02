@@ -19,10 +19,10 @@ public class FollowupAgentService(
 {
     public string AgentType => "followup";
 
-    // Delay thresholds — how many days must pass before each follow-up is eligible
     private const int FollowUp1DaysAfterContact      = 3;
     private const int FollowUp2DaysAfterFollowUp1    = 7;
-    private const int QuoteReminderDaysAfterSend     = 3;
+    private const int QuoteReminderDaysAfterSend     = 3;  // sent but never opened
+    private const int ViewedQuoteFollowupDays        = 3;  // opened but no decision yet
 
     public async Task<FollowupBatchResult> RunScheduledFollowupsAsync(CancellationToken ct = default)
     {
@@ -126,6 +126,36 @@ public class FollowupAgentService(
         {
             if (ct.IsCancellationRequested) break;
             var outcome = await ProcessQuoteReminderAsync(quote, ct);
+            if (outcome == "queued") queued++;
+            else if (outcome == "failed") failed++;
+            else skipped++;
+            await Task.Delay(700, ct);
+        }
+
+        // ── Viewed-quote follow-up: quote opened but no decision after 3+ days ──
+        var cutoffViewed = DateTime.UtcNow.AddDays(-ViewedQuoteFollowupDays);
+
+        var hasViewedFollowup = await db.AgentTasks
+            .Where(t => t.AgentType == AgentType
+                     && t.TriggerType == "viewed_quote_followup"
+                     && t.QuoteId != null
+                     && t.Status != "failed" && t.Status != "rejected")
+            .Select(t => t.QuoteId!.Value)
+            .Distinct()
+            .ToListAsync(ct);
+
+        var eligibleViewedQuotes = await db.Quotes
+            .Where(q => (q.Status == "sent" || q.Status == "viewed")
+                     && q.ViewedAt != null
+                     && q.ViewedAt <= cutoffViewed
+                     && !hasViewedFollowup.Contains(q.Id))
+            .OrderBy(q => q.ViewedAt)
+            .ToListAsync(ct);
+
+        foreach (var quote in eligibleViewedQuotes)
+        {
+            if (ct.IsCancellationRequested) break;
+            var outcome = await ProcessViewedQuoteFollowupAsync(quote, ct);
             if (outcome == "queued") queued++;
             else if (outcome == "failed") failed++;
             else skipped++;
@@ -293,6 +323,87 @@ public class FollowupAgentService(
             - Offer to answer questions or adjust the scope if needed
             - Under 120 words
             - Sign off as "Accounts Team · Wooden Houses Kenya"
+
+            Return ONLY valid JSON (no markdown fences): "subject" (string) and "body" (string, complete HTML email with inline styles only).
+            """;
+
+        var raw = await claude.CompleteAsync(systemPrompt, userMessage, ct);
+        return ParseDraft(raw);
+    }
+
+    // ─── Viewed-quote follow-up ───────────────────────────────────────────────
+
+    private async Task<string> ProcessViewedQuoteFollowupAsync(Quote quote, CancellationToken ct)
+    {
+        var task = new AgentTask
+        {
+            AgentType    = AgentType,
+            TriggerType  = "viewed_quote_followup",
+            QuoteId      = quote.Id,
+            ContactId    = quote.ContactId,
+            ToAddress    = quote.CustomerEmail,
+            InputSummary = $"{quote.CustomerName} <{quote.CustomerEmail}> | {quote.QuoteNumber} | viewed_quote_followup",
+            Status       = "pending_approval",
+        };
+        db.AgentTasks.Add(task);
+        await db.SaveChangesAsync(ct);
+
+        try
+        {
+            var (subject, body) = await GenerateViewedQuoteFollowupDraftAsync(quote, ct);
+            task.DraftSubject = subject;
+            task.DraftBody    = body;
+            await db.SaveChangesAsync(ct);
+            log.LogInformation("[FollowupAgent] viewed_quote_followup queued for {Email} (task {Id})",
+                quote.CustomerEmail, task.Id);
+            return "queued";
+        }
+        catch (Exception ex)
+        {
+            task.Status       = "failed";
+            task.ErrorMessage = ex.Message;
+            await db.SaveChangesAsync(ct);
+            log.LogError(ex, "[FollowupAgent] viewed_quote_followup failed for quote {Id}", quote.Id);
+            return "failed";
+        }
+    }
+
+    private async Task<(string subject, string body)> GenerateViewedQuoteFollowupDraftAsync(
+        Quote quote, CancellationToken ct)
+    {
+        var daysSinceViewed = quote.ViewedAt.HasValue
+            ? (int)(DateTime.UtcNow - quote.ViewedAt.Value).TotalDays
+            : 0;
+
+        var taskContext = $"""
+            Trigger: Quote was viewed but no decision yet
+            Client name: {quote.CustomerName}
+            Quote number: {quote.QuoteNumber}
+            Total: KES {quote.FinalPrice:N0}
+            House type: {quote.HouseType ?? "wooden house"}
+            Delivery timeline: {quote.DeliveryTimeline ?? "to be confirmed"}
+            Payment terms: {quote.PaymentTerms ?? "as agreed"}
+            Days since client viewed the quote: {daysSinceViewed}
+            """;
+
+        var systemPrompt = await contextSvc.BuildSystemPromptAsync(taskContext, ct);
+
+        var userMessage = $"""
+            Write a friendly follow-up email to a client who opened and viewed our quote but has not yet made a decision.
+
+            Client: {quote.CustomerName}
+            Quote: {quote.QuoteNumber}
+            Amount: KES {quote.FinalPrice:N0}
+            Project: {quote.HouseType ?? "wooden house"}{(string.IsNullOrEmpty(quote.HouseSize) ? "" : $" ({quote.HouseSize})")}
+            Days since they viewed the quote: {daysSinceViewed}
+
+            They clearly showed interest by opening it — this follow-up should:
+            - Acknowledge they had a chance to look at it
+            - Offer to clarify anything, adjust scope, or arrange a site visit
+            - Gently highlight the value and next steps
+            - Be warm, not pushy — this is a high-value construction purchase decision
+            - Under 160 words
+            - Sign off as "Sales Team · Wooden Houses Kenya"
 
             Return ONLY valid JSON (no markdown fences): "subject" (string) and "body" (string, complete HTML email with inline styles only).
             """;

@@ -446,6 +446,85 @@ public class AdminAgentsController(
 
     // ─── Agent Context ────────────────────────────────────────────────────────
 
+    // ─── Context File Upload ──────────────────────────────────────────────────
+
+    /// <summary>Upload a document (.txt, .md, .pdf) to the agent context knowledge base.</summary>
+    [HttpPost("context/upload")]
+    [RequestSizeLimit(10 * 1024 * 1024)] // 10 MB
+    public async Task<IActionResult> UploadContextFile(IFormFile file, CancellationToken ct)
+    {
+        if (file is null || file.Length == 0)
+            return BadRequest(new { message = "No file provided." });
+
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (ext is not (".txt" or ".md" or ".pdf"))
+            return BadRequest(new { message = "Only .txt, .md, and .pdf files are supported." });
+
+        string text;
+        try
+        {
+            text = ext == ".pdf"
+                ? ExtractPdfText(file)
+                : await ReadTextFileAsync(file, ct);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = $"Could not read file: {ex.Message}" });
+        }
+
+        if (string.IsNullOrWhiteSpace(text))
+            return BadRequest(new { message = "The file appears to be empty or contains no readable text." });
+
+        // Cap at 50,000 characters to avoid overwhelming the prompt
+        if (text.Length > 50_000)
+            text = text[..50_000] + "\n\n[Content truncated at 50,000 characters]";
+
+        var slug  = Path.GetFileNameWithoutExtension(file.FileName)
+                        .ToLowerInvariant()
+                        .Replace(" ", "_")
+                        .Replace("-", "_");
+        var key   = $"upload_{slug}_{Guid.NewGuid():N}"[..40]; // ensure uniqueness, max 40 chars
+        var label = Path.GetFileName(file.FileName);
+
+        var row = new AgentContext
+        {
+            Key       = key,
+            Label     = label,
+            Value     = text,
+            Hint      = $"Uploaded file ({ext.TrimStart('.')}). {text.Length:N0} characters.",
+            SortOrder = 999,
+            UpdatedAt = DateTime.UtcNow,
+        };
+        db.AgentContexts.Add(row);
+        await db.SaveChangesAsync(ct);
+
+        var adminEmail = User.Identity?.Name ?? "admin";
+        await audit.LogAsync("agent_context_file_uploaded", adminEmail, $"Uploaded file '{label}' as context key '{key}'");
+
+        return Ok(row);
+    }
+
+    private static string ExtractPdfText(IFormFile file)
+    {
+        using var stream = file.OpenReadStream();
+        using var ms     = new MemoryStream();
+        stream.CopyTo(ms);
+
+        using var pdf = UglyToad.PdfPig.PdfDocument.Open(ms.ToArray());
+        var sb = new System.Text.StringBuilder();
+        foreach (var page in pdf.GetPages())
+        {
+            sb.AppendLine(page.Text);
+        }
+        return sb.ToString();
+    }
+
+    private static async Task<string> ReadTextFileAsync(IFormFile file, CancellationToken ct)
+    {
+        using var reader = new StreamReader(file.OpenReadStream());
+        return await reader.ReadToEndAsync(ct);
+    }
+
     [HttpGet("context")]
     public async Task<IActionResult> GetContext()
     {
