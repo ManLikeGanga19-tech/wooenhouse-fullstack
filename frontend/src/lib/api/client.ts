@@ -416,7 +416,7 @@ export interface BlogListResponse {
 
 export interface EmailLog {
   id:           string;
-  type:         "contact_alert" | "auto_reply" | "quote" | "newsletter";
+  type:         "contact_alert" | "auto_reply" | "quote" | "newsletter" | "agent";
   fromAddress:  string;
   toAddress:    string;
   subject:      string;

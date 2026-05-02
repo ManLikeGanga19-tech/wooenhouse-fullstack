@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import {
     Mail, AlertCircle, CheckCircle2, TrendingUp,
-    User, Reply, FileText, Newspaper, RefreshCw,
+    User, Reply, FileText, Newspaper, RefreshCw, Bot,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { api, type EmailLog, type EmailLogStats } from "@/lib/api/client"
@@ -15,6 +15,7 @@ const TYPE_META: Record<EmailLog["type"], { label: string; icon: React.ReactNode
     auto_reply:    { label: "Auto Reply",      icon: <Reply      size={14} />, color: "#059669", bg: "#ECFDF5" },
     quote:         { label: "Quote",           icon: <FileText   size={14} />, color: "#92400E", bg: "#FEF3C7" },
     newsletter:    { label: "Newsletter",      icon: <Newspaper  size={14} />, color: "#7C3AED", bg: "#F5F3FF" },
+    agent:         { label: "AI Agent",        icon: <Bot        size={14} />, color: "#B45309", bg: "#FEF3C7" },
 }
 
 const FILTERS = [

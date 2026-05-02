@@ -80,6 +80,11 @@ public class SalesAgentService(
                 task.ApprovedBy   = "auto";
                 task.ExecutedAt   = DateTime.UtcNow;
 
+                // Mark contact as contacted so it no longer shows as unhandled
+                contact.Status      = "contacted";
+                contact.ContactedAt = DateTime.UtcNow;
+                contact.UpdatedAt   = DateTime.UtcNow;
+
                 await db.SaveChangesAsync(ct);
                 await email.SendAgentEmailAsync(contact.Email, subject, body, ct);
 
@@ -88,7 +93,7 @@ public class SalesAgentService(
             }
             else
             {
-                // Leave status as pending_approval — admin reviews in the queue
+                // Leave status as pending_approval — admin reviews in the queue before sending
                 task.Status = "pending_approval";
                 await db.SaveChangesAsync(ct);
 

@@ -162,6 +162,19 @@ public class AdminAgentsController(
             return StatusCode(502, new { message = $"Email send failed: {ex.Message}" });
         }
 
+        // Update the linked contact status so it no longer appears as unhandled
+        if (task.ContactId.HasValue)
+        {
+            var contact = await db.Contacts.FindAsync(task.ContactId.Value);
+            if (contact is not null && contact.Status == "new")
+            {
+                contact.Status      = "contacted";
+                contact.ContactedAt = DateTime.UtcNow;
+                contact.UpdatedAt   = DateTime.UtcNow;
+                await db.SaveChangesAsync();
+            }
+        }
+
         await audit.LogAsync("agent_task_approved", adminEmail,
             $"Approved agent task {id} ({task.AgentType})");
 
