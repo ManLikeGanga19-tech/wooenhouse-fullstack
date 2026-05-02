@@ -27,12 +27,26 @@ const AGENT_LABELS: Record<string, string> = {
     accounts: "Accounts",
 }
 
+const TRIGGER_LABELS: Record<string, string> = {
+    contact_form:     "New contact",
+    admin_batch:      "Batch run",
+    admin_manual:     "Manual",
+    quote_send:       "Quote cover",
+    followup_1:       "Follow-up 1",
+    followup_2:       "Follow-up 2",
+    quote_reminder:   "Quote reminder",
+    payment_reminder: "Payment reminder",
+    scheduled:        "Scheduled",
+}
+
 export default function AgentsDashboardPage() {
     const [metrics,            setMetrics]           = useState<AgentMetrics | null>(null)
     const [tasks,              setTasks]              = useState<AgentTask[]>([])
     const [unprocessedCount,   setUnprocessedCount]   = useState<number>(0)
     const [loading,            setLoading]            = useState(true)
     const [processing,         setProcessing]         = useState(false)
+    const [runningFollowups,   setRunningFollowups]   = useState(false)
+    const [runningAccounts,    setRunningAccounts]    = useState(false)
 
     const creditsLow = tasks.some(t => t.errorMessage?.startsWith("CREDITS_LOW:"))
 
@@ -55,6 +69,32 @@ export default function AgentsDashboardPage() {
     }
 
     useEffect(() => { load() }, [])
+
+    const handleRunFollowups = async () => {
+        setRunningFollowups(true)
+        try {
+            await api.admin.agents.runFollowups()
+            toast.success("Follow-up agent started", { description: "Drafts will appear in the approval queue shortly." })
+            setTimeout(() => load(), 4000)
+        } catch (err: unknown) {
+            toast.error(err instanceof Error ? err.message : "Failed to start follow-up agent")
+        } finally {
+            setRunningFollowups(false)
+        }
+    }
+
+    const handleRunAccounts = async () => {
+        setRunningAccounts(true)
+        try {
+            await api.admin.agents.runAccounts()
+            toast.success("Accounts agent started", { description: "Payment reminders and weekly report are being prepared." })
+            setTimeout(() => load(), 4000)
+        } catch (err: unknown) {
+            toast.error(err instanceof Error ? err.message : "Failed to start accounts agent")
+        } finally {
+            setRunningAccounts(false)
+        }
+    }
 
     const handleProcessNew = async () => {
         if (unprocessedCount === 0) return
@@ -204,6 +244,30 @@ export default function AgentsDashboardPage() {
                 />
             </div>
 
+            {/* Manual Agent Triggers */}
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+                <h2 className="font-semibold text-gray-900 mb-1 text-sm">Run Agents Manually</h2>
+                <p className="text-xs text-gray-400 mb-4">
+                    Scheduled agents run automatically, but you can trigger them anytime.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <AgentTriggerCard
+                        title="Follow-up Agent"
+                        description="Checks contacts 3+ days silent and queues a follow-up draft"
+                        schedule="Daily at 8:00 AM EAT"
+                        onRun={handleRunFollowups}
+                        running={runningFollowups}
+                    />
+                    <AgentTriggerCard
+                        title="Accounts Agent"
+                        description="Queues payment reminders for accepted quotes and sends the weekly report"
+                        schedule="Every Monday at 9:00 AM EAT"
+                        onRun={handleRunAccounts}
+                        running={runningAccounts}
+                    />
+                </div>
+            </div>
+
             {/* Recent Activity */}
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                 <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
@@ -307,5 +371,31 @@ function QuickLink({ href, icon, title, description, count, countLabel }: {
                 <p className="text-sm text-gray-500">{description}</p>
             </div>
         </Link>
+    )
+}
+
+function AgentTriggerCard({ title, description, schedule, onRun, running }: {
+    title: string; description: string; schedule: string;
+    onRun: () => void; running: boolean;
+}) {
+    return (
+        <div className="border border-gray-200 rounded-xl p-4 flex items-center justify-between gap-4">
+            <div className="min-w-0">
+                <p className="font-semibold text-gray-900 text-sm">{title}</p>
+                <p className="text-xs text-gray-500 mt-0.5">{description}</p>
+                <p className="text-xs text-amber-700 mt-1 font-medium">{schedule}</p>
+            </div>
+            <Button
+                size="sm"
+                variant="outline"
+                className="shrink-0 border-2"
+                style={{ borderColor: "#8B5E3C", color: "#8B5E3C" }}
+                onClick={onRun}
+                disabled={running}
+            >
+                {running ? <RefreshCw size={13} className="animate-spin mr-1.5" /> : <Play size={13} className="mr-1.5" />}
+                {running ? "Running…" : "Run Now"}
+            </Button>
+        </div>
     )
 }

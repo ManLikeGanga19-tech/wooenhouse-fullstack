@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
-import { ArrowLeft, Printer, Send, Edit, Download, FileText } from "lucide-react";
+import { ArrowLeft, Printer, Send, Edit, Download, FileText, Bot, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api, type Quote } from "@/lib/api/client";
@@ -29,8 +29,9 @@ export default function ViewQuotePage() {
 
     const [quote,          setQuote]          = useState<Quote | null>(null);
     const [loading,        setLoading]        = useState(true);
-    const [sending,        setSending]        = useState(false);
-    const [updatingStatus, setUpdatingStatus] = useState(false);
+    const [sending,          setSending]          = useState(false);
+    const [generatingCover,  setGeneratingCover]  = useState(false);
+    const [updatingStatus,   setUpdatingStatus]   = useState(false);
 
     useEffect(() => {
         api.admin.quotes.getById(id)
@@ -50,6 +51,25 @@ export default function ViewQuotePage() {
             toast.error("Failed to send quote", { description: err instanceof Error ? err.message : undefined });
         } finally {
             setSending(false);
+        }
+    };
+
+    const handleGenerateCover = async () => {
+        if (!quote) return;
+        setGeneratingCover(true);
+        try {
+            await api.admin.agents.generateQuoteCover(id);
+            toast.success("AI cover email drafted", {
+                description: "Review and approve it in the Agents queue before it sends.",
+                action: { label: "View Queue", onClick: () => router.push("/dashboard/agents/queue") },
+            });
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : "Failed to generate cover"
+            toast.error(msg.includes("already has") ? "Cover already drafted" : msg, {
+                description: msg.includes("already has") ? "Check the approval queue." : undefined,
+            });
+        } finally {
+            setGeneratingCover(false);
         }
     };
 
@@ -120,11 +140,26 @@ export default function ViewQuotePage() {
                 </Select>
 
                 {quote.status === "draft" && (
-                    <Button onClick={handleSend} disabled={sending} className="text-white shrink-0" style={{ backgroundColor: "#8B5E3C" }}>
-                        <Send size={16} className="mr-1 sm:mr-2" />
-                        <span className="hidden sm:inline">{sending ? "Sending..." : "Send"}</span>
-                        <span className="sm:hidden">{sending ? "..." : "Send"}</span>
-                    </Button>
+                    <>
+                        <Button
+                            onClick={handleGenerateCover}
+                            disabled={generatingCover}
+                            variant="outline"
+                            className="border-2 shrink-0"
+                            style={{ borderColor: "#8B5E3C", color: "#8B5E3C" }}
+                            title="Draft a personalised AI cover email for this quote"
+                        >
+                            {generatingCover
+                                ? <Clock size={16} className="sm:mr-2 animate-spin" />
+                                : <Bot size={16} className="sm:mr-2" />}
+                            <span className="hidden sm:inline">{generatingCover ? "Drafting..." : "AI Cover"}</span>
+                        </Button>
+                        <Button onClick={handleSend} disabled={sending} className="text-white shrink-0" style={{ backgroundColor: "#8B5E3C" }}>
+                            <Send size={16} className="mr-1 sm:mr-2" />
+                            <span className="hidden sm:inline">{sending ? "Sending..." : "Send"}</span>
+                            <span className="sm:hidden">{sending ? "..." : "Send"}</span>
+                        </Button>
+                    </>
                 )}
                 <Button variant="outline" onClick={() => router.push(qs ? `/dashboard/quotes/${id}/edit?${qs}` : `/dashboard/quotes/${id}/edit`)} className="border-2 shrink-0">
                     <Edit size={16} className="sm:mr-2" />

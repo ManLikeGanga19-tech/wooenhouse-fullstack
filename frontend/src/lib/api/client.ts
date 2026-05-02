@@ -206,6 +206,14 @@ export const api = {
         apiClient.post<{ message: string; taskId: string; status: string }>(
           `/api/admin/agents/contacts/${contactId}/generate-reply`
         ),
+      generateQuoteCover: (quoteId: string) =>
+        apiClient.post<{ message: string; taskId: string; status: string }>(
+          `/api/admin/agents/quotes/${quoteId}/generate-cover`
+        ),
+      runFollowups: () =>
+        apiClient.post<{ message: string }>("/api/admin/agents/run-followups"),
+      runAccounts: () =>
+        apiClient.post<{ message: string }>("/api/admin/agents/run-accounts"),
       getContext: () =>
         apiClient.get<AgentContext[]>("/api/admin/agents/context"),
       updateContext: (key: string, value: string) =>
@@ -463,7 +471,7 @@ export interface AgentTask {
   contactId?:     string;
   contactName?:   string;
   contactEmail?:  string;
-  quoteId?:       string;
+  quoteId?:       string;  // set for quote and accounts agent tasks
   toAddress?:     string;
   inputSummary:   string;
   draftSubject:   string;

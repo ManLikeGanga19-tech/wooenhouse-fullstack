@@ -180,7 +180,14 @@ try
         builder.Configuration.GetSection("Claude"));
     builder.Services.AddHttpClient<IClaudeService, ClaudeService>();
     builder.Services.AddScoped<IAgentContextService, AgentContextService>();
-    builder.Services.AddScoped<ISalesAgentService, SalesAgentService>();
+    builder.Services.AddScoped<ISalesAgentService,    SalesAgentService>();
+    builder.Services.AddScoped<IQuoteAgentService,    QuoteAgentService>();
+    builder.Services.AddScoped<IFollowupAgentService, FollowupAgentService>();
+    builder.Services.AddScoped<IAccountsAgentService, AccountsAgentService>();
+
+    // Scheduled background agents
+    builder.Services.AddHostedService<FollowupSchedulerService>();
+    builder.Services.AddHostedService<AccountsSchedulerService>();
 
     // ─── Controllers ─────────────────────────────────────────────────────────
     builder.Services.AddControllers(options =>

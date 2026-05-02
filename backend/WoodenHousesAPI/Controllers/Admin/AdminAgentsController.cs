@@ -15,6 +15,7 @@ public class AdminAgentsController(
     IEmailService           email,
     IAuditService           audit,
     ISalesAgentService      salesAgent,
+    IQuoteAgentService      quoteAgent,
     IServiceScopeFactory    scopeFactory,
     ILogger<AdminAgentsController> log) : ControllerBase
 {
@@ -121,6 +122,7 @@ public class AdminAgentsController(
                 t.ContactId,
                 ContactName  = t.Contact != null ? t.Contact.Name : null,
                 ContactEmail = t.Contact != null ? t.Contact.Email : null,
+                t.QuoteId,
                 t.ToAddress,
                 t.DraftSubject,
                 t.DraftBody,
@@ -162,7 +164,7 @@ public class AdminAgentsController(
             return StatusCode(502, new { message = $"Email send failed: {ex.Message}" });
         }
 
-        // Update the linked contact status so it no longer appears as unhandled
+        // Update linked contact status
         if (task.ContactId.HasValue)
         {
             var contact = await db.Contacts.FindAsync(task.ContactId.Value);
@@ -171,6 +173,19 @@ public class AdminAgentsController(
                 contact.Status      = "contacted";
                 contact.ContactedAt = DateTime.UtcNow;
                 contact.UpdatedAt   = DateTime.UtcNow;
+                await db.SaveChangesAsync();
+            }
+        }
+
+        // For quote agent tasks: flip quote to "sent" and stamp SentAt
+        if (task.AgentType == "quote" && task.QuoteId.HasValue)
+        {
+            var quote = await db.Quotes.FindAsync(task.QuoteId.Value);
+            if (quote is not null && quote.Status == "draft")
+            {
+                quote.Status    = "sent";
+                quote.SentAt    = DateTime.UtcNow;
+                quote.UpdatedAt = DateTime.UtcNow;
                 await db.SaveChangesAsync();
             }
         }
@@ -293,6 +308,100 @@ public class AdminAgentsController(
             taskId  = task.Id,
             status  = task.Status,
         });
+    }
+
+    // ─── Quote Agent ─────────────────────────────────────────────────────────
+
+    /// <summary>Generate an AI cover email for a quote and add it to the approval queue.</summary>
+    [HttpPost("quotes/{quoteId:guid}/generate-cover")]
+    public async Task<IActionResult> GenerateQuoteCover(Guid quoteId, CancellationToken ct)
+    {
+        var quote = await db.Quotes.FindAsync([quoteId], ct);
+        if (quote is null) return NotFound(new { message = "Quote not found." });
+
+        var existing = await db.AgentTasks
+            .Where(t => t.QuoteId == quoteId
+                     && t.AgentType == "quote"
+                     && t.Status != "failed"
+                     && t.Status != "rejected")
+            .OrderByDescending(t => t.CreatedAt)
+            .FirstOrDefaultAsync(ct);
+
+        if (existing is not null)
+            return Conflict(new
+            {
+                message = $"This quote already has an active agent task (status: {existing.Status}).",
+                taskId  = existing.Id,
+                status  = existing.Status,
+            });
+
+        var task       = await quoteAgent.HandleQuoteSendAsync(quoteId, ct);
+        var adminEmail = User.Identity?.Name ?? "admin";
+        await audit.LogAsync("agent_quote_cover_generated", adminEmail,
+            $"Generated AI cover for quote {quoteId} ({quote.QuoteNumber})");
+
+        return Ok(new
+        {
+            message = "AI cover email drafted and added to the approval queue.",
+            taskId  = task.Id,
+            status  = task.Status,
+        });
+    }
+
+    // ─── Follow-up Agent ──────────────────────────────────────────────────────
+
+    /// <summary>Manually trigger the follow-up agent (same logic as the daily scheduler).</summary>
+    [HttpPost("run-followups")]
+    public IActionResult RunFollowups()
+    {
+        var adminEmail = User.Identity?.Name ?? "admin";
+
+        _ = Task.Run(async () =>
+        {
+            using var scope = scopeFactory.CreateScope();
+            var agent = scope.ServiceProvider.GetRequiredService<IFollowupAgentService>();
+            try
+            {
+                var result = await agent.RunScheduledFollowupsAsync();
+                log.LogInformation(
+                    "[AdminAgents] Follow-ups triggered by {Admin} — queued={Q} failed={F}",
+                    adminEmail, result.Queued, result.Failed);
+            }
+            catch (Exception ex)
+            {
+                log.LogError(ex, "[AdminAgents] Follow-up run failed (triggered by {Admin})", adminEmail);
+            }
+        });
+
+        return Accepted(new { message = "Follow-up agent started. Drafts will appear in the approval queue shortly." });
+    }
+
+    // ─── Accounts Agent ───────────────────────────────────────────────────────
+
+    /// <summary>Manually trigger the accounts agent (same logic as the weekly scheduler).</summary>
+    [HttpPost("run-accounts")]
+    public IActionResult RunAccounts()
+    {
+        var adminEmail = User.Identity?.Name ?? "admin";
+
+        _ = Task.Run(async () =>
+        {
+            using var scope = scopeFactory.CreateScope();
+            var agent = scope.ServiceProvider.GetRequiredService<IAccountsAgentService>();
+            try
+            {
+                var result = await agent.RunWeeklyAsync();
+                log.LogInformation(
+                    "[AdminAgents] Accounts triggered by {Admin} — remindersQueued={R} reportSent={S}",
+                    adminEmail, result.PaymentRemindersQueued, result.ReportSent);
+            }
+            catch (Exception ex)
+            {
+                log.LogError(ex, "[AdminAgents] Accounts run failed (triggered by {Admin})", adminEmail);
+            }
+        });
+
+        return Accepted(new { message = "Accounts agent started. Payment reminders and weekly report are being prepared." });
     }
 
     // ─── Metrics ─────────────────────────────────────────────────────────────

@@ -389,4 +389,12 @@ public class EmailService(
             Build(fromAddress, DisplayName, toEmail, subject, htmlBody),
             "resend", fromAddress, toEmail);
     }
+
+    public async Task SendAdminReportAsync(string toEmail, string subject, string htmlBody)
+    {
+        logger.LogInformation("[EMAIL] Admin report → {To}", toEmail);
+        await SendAndLog(
+            Build(InfoAddress, DisplayName, toEmail, subject, htmlBody),
+            "agent", InfoAddress, toEmail);
+    }
 }
