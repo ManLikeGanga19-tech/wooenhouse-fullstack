@@ -260,6 +260,7 @@ export default function EditBlogPostPage() {
                             value={form.coverImage}
                             onChange={url => set("coverImage", url)}
                             onBusyChange={setUploadBusy}
+                            folder="wooden-houses-kenya/blog"
                         />
                     </div>
                 </div>

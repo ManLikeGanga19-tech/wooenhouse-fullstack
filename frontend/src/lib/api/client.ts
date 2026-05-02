@@ -152,13 +152,9 @@ export const api = {
     },
 
     upload: {
-      image: (file: File) => {
-        const fd = new FormData();
-        fd.append("file", file);
-        return apiClient.post<{ url: string }>("/api/admin/upload", fd, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
-      },
+      // Returns a short-lived signed token for direct browser → Cloudinary uploads
+      signature: (folder = "wooden-houses-kenya/uploads") =>
+        apiClient.get<CloudinaryUploadSignature>("/api/admin/upload/signature", { params: { folder } }),
     },
 
     blog: {
@@ -245,6 +241,15 @@ export const api = {
 };
 
 // ─── Shared types ─────────────────────────────────────────────────────────────
+
+export interface CloudinaryUploadSignature {
+  cloudName: string;
+  apiKey:    string;
+  signature: string;
+  timestamp: number;
+  folder:    string;
+  uploadUrl: string;
+}
 
 export interface AuthUser {
   name:      string;
