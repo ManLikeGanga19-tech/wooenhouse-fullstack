@@ -58,9 +58,9 @@ function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
     };
 
     return (
-        <div className="flex h-full w-full flex-col bg-white dark:bg-gray-900">
+        <div className="flex h-full w-full flex-col bg-white">
             {/* Logo */}
-            <div className="flex h-16 items-center gap-2 border-b border-gray-200 dark:border-gray-700 px-6">
+            <div className="flex h-16 items-center gap-2 border-b border-gray-200 px-6">
                 <div
                     className="flex h-10 w-10 items-center justify-center rounded-lg"
                     style={{ backgroundColor: "#8B5E3C" }}
@@ -77,7 +77,7 @@ function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
                     <span className="text-lg font-bold" style={{ color: "#8B5E3C" }}>
                         WoodenHouses
                     </span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">Admin Panel</span>
+                    <span className="text-xs text-gray-500">Admin Panel</span>
                 </div>
             </div>
 
@@ -97,7 +97,7 @@ function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
                                 "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
                                 isActive
                                     ? "text-white shadow-md"
-                                    : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                                    : "text-gray-700 hover:bg-gray-100"
                             )}
                             style={isActive ? { backgroundColor: "#8B5E3C" } : {}}
                         >
@@ -121,10 +121,10 @@ function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
                         {user?.name?.charAt(0) || "AD"}
                     </div>
                     <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                        <p className="text-sm font-medium text-gray-900 truncate">
                             {user?.name || "Admin User"}
                         </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                        <p className="text-xs text-gray-500 truncate">
                             {user?.email || "admin@woodenhouses.co.ke"}
                         </p>
                     </div>
@@ -147,7 +147,7 @@ function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
 // Desktop Sidebar (always visible on large screens)
 function DesktopSidebar() {
     return (
-        <aside className="hidden md:flex h-full w-64 flex-col border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+        <aside className="hidden md:flex h-full w-64 flex-col border-r border-gray-200 bg-white">
             <SidebarContent />
         </aside>
     );

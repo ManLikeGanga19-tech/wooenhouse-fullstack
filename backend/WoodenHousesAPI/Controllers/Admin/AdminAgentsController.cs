@@ -609,35 +609,13 @@ public class AdminAgentsController(
             / (uptimeSec * Environment.ProcessorCount) * 100.0;
 
         // ── Token aggregates ────────────────────────────────────────────────
-        var tokenAgg = await db.AgentTasks
-            .Where(t => t.InputTokens > 0 || t.OutputTokens > 0)
-            .GroupBy(_ => 1)
-            .Select(g => new
-            {
-                InputTotal   = (long)g.Sum(t => t.InputTokens),
-                OutputTotal  = (long)g.Sum(t => t.OutputTokens),
-            })
-            .FirstOrDefaultAsync();
-
-        var tokenAggToday = await db.AgentTasks
-            .Where(t => t.CreatedAt >= todayUtc && (t.InputTokens > 0 || t.OutputTokens > 0))
-            .GroupBy(_ => 1)
-            .Select(g => new
-            {
-                InputTotal  = (long)g.Sum(t => t.InputTokens),
-                OutputTotal = (long)g.Sum(t => t.OutputTokens),
-            })
-            .FirstOrDefaultAsync();
-
-        var tokenAggWeek = await db.AgentTasks
-            .Where(t => t.CreatedAt >= weekAgo && (t.InputTokens > 0 || t.OutputTokens > 0))
-            .GroupBy(_ => 1)
-            .Select(g => new
-            {
-                InputTotal  = (long)g.Sum(t => t.InputTokens),
-                OutputTotal = (long)g.Sum(t => t.OutputTokens),
-            })
-            .FirstOrDefaultAsync();
+        // Use nullable sum to safely handle empty table (SUM of no rows = NULL in SQL)
+        var inputAll    = await db.AgentTasks.SumAsync(t => (int?)t.InputTokens)  ?? 0;
+        var outputAll   = await db.AgentTasks.SumAsync(t => (int?)t.OutputTokens) ?? 0;
+        var inputToday  = await db.AgentTasks.Where(t => t.CreatedAt >= todayUtc).SumAsync(t => (int?)t.InputTokens)  ?? 0;
+        var outputToday = await db.AgentTasks.Where(t => t.CreatedAt >= todayUtc).SumAsync(t => (int?)t.OutputTokens) ?? 0;
+        var inputWeek   = await db.AgentTasks.Where(t => t.CreatedAt >= weekAgo).SumAsync(t => (int?)t.InputTokens)   ?? 0;
+        var outputWeek  = await db.AgentTasks.Where(t => t.CreatedAt >= weekAgo).SumAsync(t => (int?)t.OutputTokens)  ?? 0;
 
         // Sonnet 4.6 pricing: $3/M input, $15/M output
         static double EstimateCost(long input, long output) =>
@@ -673,7 +651,9 @@ public class AdminAgentsController(
 
         var agents = agentTypes.Select(a =>
         {
-            var s = taskStats.FirstOrDefault(x => x.AgentType == a.Type);
+            var s      = taskStats.FirstOrDefault(x => x.AgentType == a.Type);
+            var sInput  = (long)(s?.InputTokens  ?? 0);
+            var sOutput = (long)(s?.OutputTokens ?? 0);
             return new
             {
                 a.Type,
@@ -682,18 +662,18 @@ public class AdminAgentsController(
                 a.Schedule,
                 Stats = new
                 {
-                    Total        = s?.Total        ?? 0,
-                    Pending      = s?.Pending      ?? 0,
-                    AutoSent     = s?.AutoSent     ?? 0,
-                    Approved     = s?.Approved     ?? 0,
-                    Rejected     = s?.Rejected     ?? 0,
-                    Failed       = s?.Failed       ?? 0,
-                    TodayCount   = s?.TodayCount   ?? 0,
-                    WeekCount    = s?.WeekCount    ?? 0,
+                    Total        = s?.Total      ?? 0,
+                    Pending      = s?.Pending    ?? 0,
+                    AutoSent     = s?.AutoSent   ?? 0,
+                    Approved     = s?.Approved   ?? 0,
+                    Rejected     = s?.Rejected   ?? 0,
+                    Failed       = s?.Failed     ?? 0,
+                    TodayCount   = s?.TodayCount ?? 0,
+                    WeekCount    = s?.WeekCount  ?? 0,
                     LastRunAt    = s?.LastRunAt,
-                    InputTokens  = s?.InputTokens  ?? 0L,
-                    OutputTokens = s?.OutputTokens ?? 0L,
-                    EstCost      = EstimateCost(s?.InputTokens ?? 0L, s?.OutputTokens ?? 0L),
+                    InputTokens  = sInput,
+                    OutputTokens = sOutput,
+                    EstCost      = EstimateCost(sInput, sOutput),
                 },
             };
         });
@@ -712,24 +692,24 @@ public class AdminAgentsController(
             {
                 Today = new
                 {
-                    Input     = tokenAggToday?.InputTotal   ?? 0L,
-                    Output    = tokenAggToday?.OutputTotal  ?? 0L,
-                    Total     = (tokenAggToday?.InputTotal  ?? 0L) + (tokenAggToday?.OutputTotal ?? 0L),
-                    EstCostUsd = EstimateCost(tokenAggToday?.InputTotal ?? 0L, tokenAggToday?.OutputTotal ?? 0L),
+                    Input      = (long)inputToday,
+                    Output     = (long)outputToday,
+                    Total      = (long)(inputToday + outputToday),
+                    EstCostUsd = EstimateCost(inputToday, outputToday),
                 },
                 Week = new
                 {
-                    Input     = tokenAggWeek?.InputTotal   ?? 0L,
-                    Output    = tokenAggWeek?.OutputTotal  ?? 0L,
-                    Total     = (tokenAggWeek?.InputTotal  ?? 0L) + (tokenAggWeek?.OutputTotal ?? 0L),
-                    EstCostUsd = EstimateCost(tokenAggWeek?.InputTotal ?? 0L, tokenAggWeek?.OutputTotal ?? 0L),
+                    Input      = (long)inputWeek,
+                    Output     = (long)outputWeek,
+                    Total      = (long)(inputWeek + outputWeek),
+                    EstCostUsd = EstimateCost(inputWeek, outputWeek),
                 },
                 AllTime = new
                 {
-                    Input     = tokenAgg?.InputTotal   ?? 0L,
-                    Output    = tokenAgg?.OutputTotal  ?? 0L,
-                    Total     = (tokenAgg?.InputTotal  ?? 0L) + (tokenAgg?.OutputTotal ?? 0L),
-                    EstCostUsd = EstimateCost(tokenAgg?.InputTotal ?? 0L, tokenAgg?.OutputTotal ?? 0L),
+                    Input      = (long)inputAll,
+                    Output     = (long)outputAll,
+                    Total      = (long)(inputAll + outputAll),
+                    EstCostUsd = EstimateCost(inputAll, outputAll),
                 },
             },
             Agents = agents,
