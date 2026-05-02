@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import {
     Bot, Clock, CheckCircle2, XCircle, Zap, AlertTriangle,
-    RefreshCw, Users, FileText,
+    RefreshCw, Users, Play, Inbox,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -21,26 +21,30 @@ const STATUS_META: Record<string, { label: string; color: string; bg: string; ic
 }
 
 const AGENT_LABELS: Record<string, string> = {
-    sales:     "Sales",
-    quote:     "Quote",
-    followup:  "Follow-up",
-    accounts:  "Accounts",
+    sales:    "Sales",
+    quote:    "Quote",
+    followup: "Follow-up",
+    accounts: "Accounts",
 }
 
 export default function AgentsDashboardPage() {
-    const [metrics, setMetrics] = useState<AgentMetrics | null>(null)
-    const [tasks,   setTasks]   = useState<AgentTask[]>([])
-    const [loading, setLoading] = useState(true)
+    const [metrics,            setMetrics]           = useState<AgentMetrics | null>(null)
+    const [tasks,              setTasks]              = useState<AgentTask[]>([])
+    const [unprocessedCount,   setUnprocessedCount]   = useState<number>(0)
+    const [loading,            setLoading]            = useState(true)
+    const [processing,         setProcessing]         = useState(false)
 
     const load = async () => {
         setLoading(true)
         try {
-            const [mRes, tRes] = await Promise.all([
+            const [mRes, tRes, uRes] = await Promise.all([
                 api.admin.agents.getMetrics(),
                 api.admin.agents.getTasks({ pageSize: 20 }),
+                api.admin.agents.getUnprocessedCount(),
             ])
             setMetrics(mRes.data)
             setTasks(tRes.data.items)
+            setUnprocessedCount(uRes.data.count)
         } catch {
             toast.error("Failed to load agent data")
         } finally {
@@ -49,6 +53,24 @@ export default function AgentsDashboardPage() {
     }
 
     useEffect(() => { load() }, [])
+
+    const handleProcessNew = async () => {
+        if (unprocessedCount === 0) return
+        setProcessing(true)
+        try {
+            await api.admin.agents.processNewContacts()
+            toast.success(
+                `Processing ${unprocessedCount} contact${unprocessedCount !== 1 ? "s" : ""}…`,
+                { description: "Drafts will appear in the approval queue shortly." }
+            )
+            // Reload after a short delay to show updated queue count
+            setTimeout(() => load(), 3000)
+        } catch (err: unknown) {
+            toast.error(err instanceof Error ? err.message : "Failed to start processing")
+        } finally {
+            setProcessing(false)
+        }
+    }
 
     return (
         <div className="space-y-6">
@@ -79,37 +101,43 @@ export default function AgentsDashboardPage() {
                 </div>
             </div>
 
+            {/* Unprocessed contacts banner */}
+            {unprocessedCount > 0 && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-100 text-amber-700 shrink-0">
+                            <Inbox size={18} />
+                        </div>
+                        <div>
+                            <p className="font-semibold text-amber-900 text-sm">
+                                {unprocessedCount} contact{unprocessedCount !== 1 ? "s" : ""} waiting for a reply
+                            </p>
+                            <p className="text-xs text-amber-700 mt-0.5">
+                                These clients have status "new" and haven't received an agent response yet.
+                                Drafts will be added to the approval queue for your review before sending.
+                            </p>
+                        </div>
+                    </div>
+                    <Button
+                        size="sm"
+                        onClick={handleProcessNew}
+                        disabled={processing}
+                        className="text-white shrink-0"
+                        style={{ backgroundColor: "#B45309" }}
+                    >
+                        <Play size={13} className="mr-1.5" />
+                        {processing ? "Starting…" : `Generate ${unprocessedCount} Draft${unprocessedCount !== 1 ? "s" : ""}`}
+                    </Button>
+                </div>
+            )}
+
             {/* Metric Cards */}
             {metrics && (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <MetricCard
-                        label="Pending Approval"
-                        value={metrics.pending}
-                        icon={<Clock size={20} />}
-                        color="#92400E"
-                        bg="#FEF9C3"
-                    />
-                    <MetricCard
-                        label="Auto-Sent Today"
-                        value={metrics.totalToday}
-                        icon={<Zap size={20} />}
-                        color="#065F46"
-                        bg="#D1FAE5"
-                    />
-                    <MetricCard
-                        label="This Week"
-                        value={metrics.totalWeek}
-                        icon={<Bot size={20} />}
-                        color="#1D4ED8"
-                        bg="#DBEAFE"
-                    />
-                    <MetricCard
-                        label="Failed"
-                        value={metrics.failed}
-                        icon={<AlertTriangle size={20} />}
-                        color="#991B1B"
-                        bg="#FEE2E2"
-                    />
+                    <MetricCard label="Pending Approval" value={metrics.pending}    icon={<Clock size={20} />}         color="#92400E" bg="#FEF9C3" />
+                    <MetricCard label="Auto-Sent Today"  value={metrics.totalToday} icon={<Zap size={20} />}           color="#065F46" bg="#D1FAE5" />
+                    <MetricCard label="This Week"        value={metrics.totalWeek}  icon={<Bot size={20} />}           color="#1D4ED8" bg="#DBEAFE" />
+                    <MetricCard label="Failed"           value={metrics.failed}     icon={<AlertTriangle size={20} />} color="#991B1B" bg="#FEE2E2" />
                 </div>
             )}
 
@@ -133,6 +161,8 @@ export default function AgentsDashboardPage() {
                     icon={<Users size={20} />}
                     title="Contacts"
                     description="View all client inquiries the sales agent has responded to"
+                    count={unprocessedCount > 0 ? unprocessedCount : undefined}
+                    countLabel="unprocessed"
                 />
             </div>
 
@@ -150,7 +180,9 @@ export default function AgentsDashboardPage() {
                         <Bot size={40} className="mx-auto mb-3 text-gray-300" />
                         <p className="text-gray-500 font-medium">No agent activity yet</p>
                         <p className="text-gray-400 text-sm mt-1">
-                            Agents will appear here once a contact form is submitted.
+                            {unprocessedCount > 0
+                                ? "Use the button above to generate replies for existing contacts."
+                                : "Agents will appear here once a contact form is submitted."}
                         </p>
                     </div>
                 ) : (
@@ -198,19 +230,14 @@ export default function AgentsDashboardPage() {
     )
 }
 
-function MetricCard({
-    label, value, icon, color, bg,
-}: {
+function MetricCard({ label, value, icon, color, bg }: {
     label: string; value: number; icon: React.ReactNode; color: string; bg: string;
 }) {
     return (
         <div className="bg-white rounded-xl border border-gray-200 p-5">
             <div className="flex items-center justify-between mb-3">
                 <span className="text-xs text-gray-500 font-medium">{label}</span>
-                <div
-                    className="flex h-8 w-8 items-center justify-center rounded-lg"
-                    style={{ backgroundColor: bg, color }}
-                >
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: bg, color }}>
                     {icon}
                 </div>
             </div>
@@ -219,10 +246,9 @@ function MetricCard({
     )
 }
 
-function QuickLink({
-    href, icon, title, description, count,
-}: {
-    href: string; icon: React.ReactNode; title: string; description: string; count?: number;
+function QuickLink({ href, icon, title, description, count, countLabel }: {
+    href: string; icon: React.ReactNode; title: string; description: string;
+    count?: number; countLabel?: string;
 }) {
     return (
         <Link href={href}>
@@ -235,7 +261,7 @@ function QuickLink({
                         <span className="font-semibold text-gray-900">{title}</span>
                         {count != null && count > 0 && (
                             <span className="bg-amber-100 text-amber-700 text-xs font-bold px-1.5 py-0.5 rounded-full">
-                                {count}
+                                {count}{countLabel ? ` ${countLabel}` : ""}
                             </span>
                         )}
                     </div>

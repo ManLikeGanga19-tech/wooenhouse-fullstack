@@ -13,7 +13,10 @@ namespace WoodenHousesAPI.Controllers.Admin;
 public class AdminAgentsController(
     AppDbContext            db,
     IEmailService           email,
-    IAuditService           audit) : ControllerBase
+    IAuditService           audit,
+    ISalesAgentService      salesAgent,
+    IServiceScopeFactory    scopeFactory,
+    ILogger<AdminAgentsController> log) : ControllerBase
 {
     // ─── Agent Tasks ─────────────────────────────────────────────────────────
 
@@ -185,6 +188,98 @@ public class AdminAgentsController(
             $"Rejected agent task {id} ({task.AgentType}): {req.Note}");
 
         return Ok(new { message = "Task rejected." });
+    }
+
+    // ─── Backlog Processing ───────────────────────────────────────────────────
+
+    /// <summary>
+    /// Returns the number of "new" non-spam contacts that have no active agent task.
+    /// Used by the dashboard to show how many contacts are waiting for a reply.
+    /// </summary>
+    [HttpGet("unprocessed-count")]
+    public async Task<IActionResult> GetUnprocessedCount(CancellationToken ct)
+    {
+        var count = await salesAgent.CountUnhandledContactsAsync(ct);
+        return Ok(new { count });
+    }
+
+    /// <summary>
+    /// Queues AI-drafted replies for all unhandled "new" contacts.
+    /// Runs in the background — returns 202 immediately.
+    /// Each draft lands in the approval queue for admin review before sending.
+    /// </summary>
+    [HttpPost("process-new-contacts")]
+    public IActionResult ProcessNewContacts()
+    {
+        var adminEmail = User.Identity?.Name ?? "admin";
+
+        _ = Task.Run(async () =>
+        {
+            // Use a fresh DI scope so the DbContext isn't shared with the HTTP request scope
+            using var scope = scopeFactory.CreateScope();
+            var agent = scope.ServiceProvider.GetRequiredService<ISalesAgentService>();
+
+            try
+            {
+                var result = await agent.ProcessUnhandledContactsAsync();
+                log.LogInformation(
+                    "[AdminAgents] Batch triggered by {Admin} — queued={Queued} failed={Failed} skipped={Skipped}",
+                    adminEmail, result.Queued, result.Failed, result.Skipped);
+            }
+            catch (Exception ex)
+            {
+                log.LogError(ex, "[AdminAgents] Batch processing failed (triggered by {Admin})", adminEmail);
+            }
+        });
+
+        return Accepted(new { message = "Processing started. Check the approval queue in a moment." });
+    }
+
+    /// <summary>
+    /// Generate a reply for a single existing contact and add it to the approval queue.
+    /// </summary>
+    [HttpPost("contacts/{contactId:guid}/generate-reply")]
+    public async Task<IActionResult> GenerateReply(Guid contactId, CancellationToken ct)
+    {
+        var contact = await db.Contacts.FindAsync([contactId], ct);
+        if (contact is null) return NotFound(new { message = "Contact not found." });
+
+        if (contact.IsSpam)
+            return BadRequest(new { message = "Cannot generate a reply for a spam contact." });
+
+        // Check for an already-active task so we don't create duplicates
+        var existing = await db.AgentTasks
+            .Where(t => t.ContactId == contactId
+                     && t.AgentType == "sales"
+                     && t.Status != "failed"
+                     && t.Status != "rejected")
+            .OrderByDescending(t => t.CreatedAt)
+            .FirstOrDefaultAsync(ct);
+
+        if (existing is not null)
+            return Conflict(new
+            {
+                message = $"This contact already has an active agent task (status: {existing.Status}).",
+                taskId  = existing.Id,
+                status  = existing.Status,
+            });
+
+        var task = await salesAgent.HandleContactAsync(
+            contactId,
+            AgentDispatchMode.QueueForApproval,
+            "admin_manual",
+            ct);
+
+        var adminEmail = User.Identity?.Name ?? "admin";
+        await audit.LogAsync("agent_reply_generated", adminEmail,
+            $"Generated reply for contact {contactId} ({contact.Name})");
+
+        return Ok(new
+        {
+            message = "Reply drafted and added to the approval queue.",
+            taskId  = task.Id,
+            status  = task.Status,
+        });
     }
 
     // ─── Metrics ─────────────────────────────────────────────────────────────

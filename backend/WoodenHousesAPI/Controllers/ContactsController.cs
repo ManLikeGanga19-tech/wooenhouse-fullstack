@@ -93,9 +93,9 @@ public class ContactsController(
                     TaskContinuationOptions.OnlyOnFaulted,
                     TaskScheduler.Default);
 
-            // Sales agent handles the personalised reply — replaces the generic auto-reply
+            // Sales agent handles the personalised reply — fire-and-forget, auto-sends immediately
             _ = salesAgent
-                .HandleNewContactAsync(contact.Id)
+                .HandleContactAsync(contact.Id, AgentDispatchMode.AutoSend, "contact_form")
                 .ContinueWith(t => logger.LogError(t.Exception,
                     "[SalesAgent] Failed for contact {ContactId}", contact.Id),
                     CancellationToken.None,

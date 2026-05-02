@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Phone, Mail, MapPin, Calendar, FileText, User, PhoneCall } from "lucide-react";
+import { ArrowLeft, Phone, Mail, MapPin, Calendar, FileText, User, PhoneCall, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,7 @@ import { api, type Contact } from "@/lib/api/client";
 import { formatDate } from "@/lib/utils/formatters";
 import { SERVICE_TYPE_LABELS, BUDGET_LABELS, TIMELINE_LABELS } from "@/types";
 import { toast } from "sonner";
+import Link from "next/link";
 
 export default function ContactDetailsPage() {
     const params       = useParams();
@@ -23,11 +24,13 @@ export default function ContactDetailsPage() {
     const back         = qs ? `/dashboard/contacts?${qs}` : "/dashboard/contacts";
     const id           = params.id as string;
 
-    const [contact,  setContact]  = useState<Contact | null>(null);
-    const [loading,  setLoading]  = useState(true);
-    const [status,   setStatus]   = useState("");
-    const [notes,    setNotes]    = useState("");
-    const [saving,   setSaving]   = useState(false);
+    const [contact,        setContact]       = useState<Contact | null>(null);
+    const [loading,        setLoading]       = useState(true);
+    const [status,         setStatus]        = useState("");
+    const [notes,          setNotes]         = useState("");
+    const [saving,         setSaving]        = useState(false);
+    const [generatingReply, setGeneratingReply] = useState(false);
+    const [replyTaskId,    setReplyTaskId]   = useState<string | null>(null);
 
     useEffect(() => {
         api.admin.contacts.getById(id)
@@ -59,6 +62,37 @@ export default function ContactDetailsPage() {
             toast.error("Failed to save notes");
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handleGenerateReply = async () => {
+        setGeneratingReply(true);
+        try {
+            const res = await api.admin.agents.generateReply(id);
+            setReplyTaskId(res.data.taskId);
+            toast.success("Reply drafted by AI", {
+                description: "Check the approval queue to review and send it.",
+                action: {
+                    label: "View Queue",
+                    onClick: () => router.push("/dashboard/agents/queue"),
+                },
+            });
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : "Failed to generate reply";
+            // Friendly message if a task already exists
+            if (msg.toLowerCase().includes("already has an active")) {
+                toast.info("Reply already exists", {
+                    description: "This contact already has an agent task. Check the approval queue.",
+                    action: {
+                        label: "View Queue",
+                        onClick: () => router.push("/dashboard/agents/queue"),
+                    },
+                });
+            } else {
+                toast.error(msg);
+            }
+        } finally {
+            setGeneratingReply(false);
         }
     };
 
@@ -94,9 +128,7 @@ export default function ContactDetailsPage() {
                 </Button>
             </div>
 
-            {/* ── Mobile floating quick-action bar ─────────────────────────────
-                Sits above the bottom tab bar (bottom-16 = 64px tab height).
-                Only rendered while this page is mounted — disappears on back.   */}
+            {/* Mobile floating quick-action bar */}
             {contact && (
                 <div
                     className="md:hidden fixed inset-x-0 z-40 px-4 pb-2"
@@ -232,6 +264,44 @@ export default function ContactDetailsPage() {
                                     </SelectContent>
                                 </Select>
                             </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* AI Agent Card */}
+                    <Card className="border-2 border-amber-100 bg-amber-50/40">
+                        <CardHeader>
+                            <CardTitle className="text-lg flex items-center gap-2" style={{ color: "#8B5E3C" }}>
+                                <Bot size={18} />
+                                AI Sales Agent
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                            <p className="text-sm text-gray-600">
+                                Let Claude draft a personalised reply based on this contact&apos;s details.
+                                You&apos;ll review it in the approval queue before it&apos;s sent.
+                            </p>
+                            <Button
+                                className="w-full text-white"
+                                style={{ backgroundColor: "#B45309" }}
+                                onClick={handleGenerateReply}
+                                disabled={generatingReply || contact.isSpam}
+                            >
+                                <Bot size={15} className="mr-2" />
+                                {generatingReply ? "Drafting reply…" : "Generate AI Reply"}
+                            </Button>
+                            {replyTaskId && (
+                                <Link
+                                    href="/dashboard/agents/queue"
+                                    className="block text-center text-xs text-amber-700 underline underline-offset-2 hover:text-amber-900"
+                                >
+                                    View in approval queue →
+                                </Link>
+                            )}
+                            {contact.isSpam && (
+                                <p className="text-xs text-red-500 text-center">
+                                    Cannot generate replies for spam contacts.
+                                </p>
+                            )}
                         </CardContent>
                     </Card>
 

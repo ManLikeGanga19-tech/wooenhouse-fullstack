@@ -194,6 +194,14 @@ export const api = {
         apiClient.post<{ message: string }>(`/api/admin/agents/tasks/${id}/approve`, data ?? {}),
       reject:    (id: string, note?: string) =>
         apiClient.post<{ message: string }>(`/api/admin/agents/tasks/${id}/reject`, { note }),
+      getUnprocessedCount: () =>
+        apiClient.get<{ count: number }>("/api/admin/agents/unprocessed-count"),
+      processNewContacts: () =>
+        apiClient.post<{ message: string }>("/api/admin/agents/process-new-contacts"),
+      generateReply: (contactId: string) =>
+        apiClient.post<{ message: string; taskId: string; status: string }>(
+          `/api/admin/agents/contacts/${contactId}/generate-reply`
+        ),
       getContext: () =>
         apiClient.get<AgentContext[]>("/api/admin/agents/context"),
       updateContext: (key: string, value: string) =>
