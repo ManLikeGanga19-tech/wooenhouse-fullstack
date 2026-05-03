@@ -74,7 +74,7 @@ export default function About() {
                                     className="text-3xl sm:text-4xl font-extrabold"
                                     style={{ color: "#8B5E3C" }}
                                 >
-                                    56
+                                    20
                                 </span>
                                 <p className="text-gray-700 text-base sm:text-lg font-medium">
                                     Happy Clients

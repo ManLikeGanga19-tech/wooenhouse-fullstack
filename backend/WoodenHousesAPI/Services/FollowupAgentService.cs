@@ -253,7 +253,7 @@ public class FollowupAgentService(
             Return ONLY valid JSON (no markdown fences): "subject" (string) and "body" (string, complete HTML email with inline styles only).
             """;
 
-        var result = await claude.CompleteAsync(systemPrompt, userMessage, ct);
+        var result = await claude.CompleteAsync(systemPrompt, userMessage, ct, "claude-haiku-4-5-20251001");
         var (subject, body) = ParseDraft(result.Text);
         return new DraftResult(subject, body, result.InputTokens, result.OutputTokens);
     }
@@ -334,7 +334,7 @@ public class FollowupAgentService(
             Return ONLY valid JSON (no markdown fences): "subject" (string) and "body" (string, complete HTML email with inline styles only).
             """;
 
-        var result = await claude.CompleteAsync(systemPrompt, userMessage, ct);
+        var result = await claude.CompleteAsync(systemPrompt, userMessage, ct, "claude-haiku-4-5-20251001");
         var (subject, body) = ParseDraft(result.Text);
         return new DraftResult(subject, body, result.InputTokens, result.OutputTokens);
     }
@@ -418,7 +418,7 @@ public class FollowupAgentService(
             Return ONLY valid JSON (no markdown fences): "subject" (string) and "body" (string, complete HTML email with inline styles only).
             """;
 
-        var result = await claude.CompleteAsync(systemPrompt, userMessage, ct);
+        var result = await claude.CompleteAsync(systemPrompt, userMessage, ct, "claude-haiku-4-5-20251001");
         var (subject, body) = ParseDraft(result.Text);
         return new DraftResult(subject, body, result.InputTokens, result.OutputTokens);
     }

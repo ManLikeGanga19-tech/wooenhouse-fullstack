@@ -242,7 +242,7 @@ public class SalesAgentService(
             The body should be a complete HTML email with simple inline styles only (no CSS classes).
             """;
 
-        var result = await claude.CompleteAsync(systemPrompt, userMessage, ct);
+        var result = await claude.CompleteAsync(systemPrompt, userMessage, ct, "claude-haiku-4-5-20251001");
         var (subject, body) = ParseDraft(result.Text);
         return new DraftResult(subject, body, result.InputTokens, result.OutputTokens);
     }

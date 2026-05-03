@@ -49,7 +49,11 @@ export default function AgentsDashboardPage() {
     const [runningFollowups,   setRunningFollowups]   = useState(false)
     const [runningAccounts,    setRunningAccounts]    = useState(false)
 
-    const creditsLow = tasks.some(t => t.errorMessage?.startsWith("CREDITS_LOW:"))
+    const oneDayAgo  = Date.now() - 24 * 60 * 60 * 1000
+    const creditsLow = tasks.some(t =>
+        t.errorMessage?.startsWith("CREDITS_LOW:") &&
+        new Date(t.createdAt).getTime() > oneDayAgo
+    )
 
     const load = async () => {
         setLoading(true)

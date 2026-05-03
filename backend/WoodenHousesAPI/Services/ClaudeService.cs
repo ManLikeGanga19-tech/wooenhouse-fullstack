@@ -43,7 +43,7 @@ public record ClaudeResult(string Text, int InputTokens, int OutputTokens);
 
 public interface IClaudeService
 {
-    Task<ClaudeResult> CompleteAsync(string systemPrompt, string userMessage, CancellationToken ct = default);
+    Task<ClaudeResult> CompleteAsync(string systemPrompt, string userMessage, CancellationToken ct = default, string? model = null);
 }
 
 public class ClaudeService(
@@ -60,14 +60,15 @@ public class ClaudeService(
     };
 
     public async Task<ClaudeResult> CompleteAsync(
-        string systemPrompt, string userMessage, CancellationToken ct = default)
+        string systemPrompt, string userMessage, CancellationToken ct = default, string? model = null)
     {
         if (string.IsNullOrWhiteSpace(_cfg.ApiKey))
             throw new InvalidOperationException("Claude API key is not configured.");
 
+        var resolvedModel = model ?? _cfg.Model;
         var requestBody = new
         {
-            model      = _cfg.Model,
+            model      = resolvedModel,
             max_tokens = 2048,
             system     = systemPrompt,
             messages   = new[] { new { role = "user", content = userMessage } },
@@ -81,7 +82,7 @@ public class ClaudeService(
         http.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
         http.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-        log.LogInformation("[Claude] Sending request — model={Model}", _cfg.Model);
+        log.LogInformation("[Claude] Sending request — model={Model}", resolvedModel);
 
         var response = await http.PostAsync("https://api.anthropic.com/v1/messages", content, ct);
         var body     = await response.Content.ReadAsStringAsync(ct);
