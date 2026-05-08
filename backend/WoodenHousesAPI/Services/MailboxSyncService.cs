@@ -16,8 +16,8 @@ public class MailboxSyncService(
         {
             await RunSyncCycleAsync(stoppingToken);
 
-            var interval = TimeSpan.FromMinutes(cfg.Value.SyncIntervalMinutes);
-            logger.LogInformation("Next mailbox sync in {Minutes} min", cfg.Value.SyncIntervalMinutes);
+            var interval = TimeSpan.FromSeconds(cfg.Value.SyncIntervalSeconds);
+            logger.LogInformation("Next mailbox sync in {Seconds}s", cfg.Value.SyncIntervalSeconds);
             await Task.Delay(interval, stoppingToken);
         }
     }
