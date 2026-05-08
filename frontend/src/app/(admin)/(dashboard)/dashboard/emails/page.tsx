@@ -445,7 +445,7 @@ function MailboxTab() {
     const activeAccount = accounts.find(a => a.email === activeAcct)
 
     return (
-        <div className="flex flex-col h-[calc(100vh-140px)]">
+        <div className="flex flex-col h-[calc(100dvh-280px)] md:h-[calc(100dvh-190px)]">
             {/* Account tabs */}
             <div className="flex items-center gap-1 px-1 pb-3 overflow-x-auto scrollbar-hide shrink-0">
                 {accounts.map(acct => (

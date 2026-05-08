@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import {
     LayoutDashboard, Users, Mail, FileText,
-    MoreHorizontal, FolderOpen, Wrench, Settings, LogOut, BookOpen, Inbox,
+    MoreHorizontal, FolderOpen, Wrench, Settings, LogOut, BookOpen, Inbox, Bot,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -21,10 +21,11 @@ const PRIMARY_TABS = [
 ];
 
 const MORE_ITEMS = [
+    { name: "Agents",   href: "/dashboard/agents",   icon: Bot        },
+    { name: "Emails",   href: "/dashboard/emails",   icon: Inbox      },
     { name: "Projects", href: "/dashboard/projects", icon: FolderOpen },
     { name: "Services", href: "/dashboard/services", icon: Wrench     },
     { name: "Blog",     href: "/dashboard/blog",     icon: BookOpen   },
-    { name: "Emails",   href: "/dashboard/emails",   icon: Inbox      },
     { name: "Settings", href: "/dashboard/settings", icon: Settings   },
 ];
 

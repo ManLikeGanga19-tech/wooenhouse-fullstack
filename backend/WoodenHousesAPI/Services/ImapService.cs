@@ -2,6 +2,7 @@ using MailKit;
 using MailKit.Net.Imap;
 using MailKit.Search;
 using MailKit.Security;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using MimeKit;
 using WoodenHousesAPI.Data;
@@ -15,14 +16,12 @@ public interface IImapService
 }
 
 public class ImapService(
-    AppDbContext         db,
+    AppDbContext            db,
     IOptions<MailboxConfig> cfg,
-    ILogger<ImapService> logger) : IImapService
+    ILogger<ImapService>    logger) : IImapService
 {
-    private static readonly string[] FolderNames =
-        ["inbox", "sent", "drafts", "junk", "trash"];
+    private const int BatchSize = 25; // fetch bodies in batches to stay memory-friendly
 
-    // IMAP folder names vary by provider; we check common names
     private static readonly Dictionary<string, string[]> FolderAliases = new()
     {
         ["inbox"]  = ["INBOX"],
@@ -41,9 +40,7 @@ public class ImapService(
         }
 
         using var client = new ImapClient();
-
-        // Bypass cPanel self-signed certificate
-        client.ServerCertificateValidationCallback = (s, c, h, e) => true;
+        client.ServerCertificateValidationCallback = (s, c, h, e) => true; // bypass cPanel self-signed cert
 
         try
         {
@@ -58,6 +55,8 @@ public class ImapService(
 
         foreach (var (folderKey, aliases) in FolderAliases)
         {
+            if (ct.IsCancellationRequested) break;
+
             var folder = await OpenFolderAsync(client, aliases, ct);
             if (folder is null) continue;
 
@@ -67,7 +66,7 @@ public class ImapService(
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Error syncing folder {Folder} for {Email}", folderKey, account.Email);
+                logger.LogError(ex, "Error syncing {Folder} for {Email}", folderKey, account.Email);
             }
             finally
             {
@@ -98,33 +97,74 @@ public class ImapService(
     private async Task SyncFolderAsync(
         string accountEmail, string folderKey, IMailFolder folder, CancellationToken ct)
     {
-        // Fetch the 100 most recent messages
-        var count     = folder.Count;
-        if (count == 0) return;
+        if (folder.Count == 0) return;
 
-        var startIdx  = Math.Max(0, count - 100);
-        var endIdx    = count - 1;
+        // Find highest UID already stored for this account+folder
+        var lastUid = await db.InboxEmails
+            .Where(e => e.AccountEmail == accountEmail && e.Folder == folderKey)
+            .MaxAsync(e => (long?)e.Uid, ct);
 
-        var summaries = await folder.FetchAsync(startIdx, endIdx,
+        IList<UniqueId> uids;
+
+        if (lastUid == null)
+        {
+            // First ever sync — pull full history
+            logger.LogInformation("Full historical sync: {Email}/{Folder} ({Count} messages)",
+                accountEmail, folderKey, folder.Count);
+            uids = await folder.SearchAsync(SearchQuery.All, ct);
+        }
+        else
+        {
+            // Delta sync — only UIDs newer than the last one we have
+            var nextUid = new UniqueId((uint)lastUid.Value + 1);
+            uids = await folder.SearchAsync(
+                SearchQuery.Uids(new UniqueIdRange(nextUid, UniqueId.MaxValue)), ct);
+
+            if (uids.Count == 0)
+            {
+                logger.LogDebug("No new messages in {Email}/{Folder}", accountEmail, folderKey);
+                return;
+            }
+            logger.LogInformation("Delta sync: {Email}/{Folder} — {Count} new",
+                accountEmail, folderKey, uids.Count);
+        }
+
+        // Process in batches so we don't load all bodies at once
+        for (int i = 0; i < uids.Count; i += BatchSize)
+        {
+            if (ct.IsCancellationRequested) break;
+            var batch = uids.Skip(i).Take(BatchSize).ToList();
+            await ProcessBatchAsync(accountEmail, folderKey, folder, batch, ct);
+        }
+    }
+
+    private async Task ProcessBatchAsync(
+        string accountEmail, string folderKey,
+        IMailFolder folder, List<UniqueId> batch, CancellationToken ct)
+    {
+        // Fetch summaries (flags + envelope) for the whole batch in one round-trip
+        var summaries = await folder.FetchAsync(batch,
             MessageSummaryItems.UniqueId |
             MessageSummaryItems.Envelope |
-            MessageSummaryItems.Flags |
-            MessageSummaryItems.Headers, ct);
+            MessageSummaryItems.Flags, ct);
+
+        // Build set of UIDs already in DB for this batch (defensive dedup)
+        var batchUids = batch.Select(u => (long)u.Id).ToHashSet();
+        var existingList = await db.InboxEmails
+            .Where(e => e.AccountEmail == accountEmail &&
+                        e.Folder       == folderKey    &&
+                        batchUids.Contains(e.Uid))
+            .Select(e => e.Uid)
+            .ToListAsync(ct);
+        var existing = existingList.ToHashSet();
 
         foreach (var summary in summaries)
         {
-            var uid       = (long)summary.UniqueId.Id;
-            var messageId = summary.Envelope?.MessageId ?? string.Empty;
+            if (ct.IsCancellationRequested) break;
 
-            // Skip if already synced (dedup by uid + account + folder)
-            var exists = db.InboxEmails.Any(e =>
-                e.AccountEmail == accountEmail &&
-                e.Folder       == folderKey    &&
-                e.Uid          == uid);
+            var uid = (long)summary.UniqueId.Id;
+            if (existing.Contains(uid)) continue;
 
-            if (exists) continue;
-
-            // Fetch full message body
             MimeMessage? mime = null;
             try
             {
@@ -132,16 +172,17 @@ public class ImapService(
             }
             catch (Exception ex)
             {
-                logger.LogWarning(ex, "Could not fetch body for UID {Uid}", uid);
+                logger.LogWarning(ex, "Could not fetch body for UID {Uid} in {Email}/{Folder}",
+                    uid, accountEmail, folderKey);
                 continue;
             }
 
-            var email = new InboxEmail
+            db.InboxEmails.Add(new InboxEmail
             {
                 AccountEmail  = accountEmail,
                 Folder        = folderKey,
                 Uid           = uid,
-                MessageId     = messageId,
+                MessageId     = summary.Envelope?.MessageId ?? string.Empty,
                 Subject       = mime.Subject ?? "(no subject)",
                 FromAddress   = mime.From.Mailboxes.FirstOrDefault()?.Address ?? string.Empty,
                 FromName      = mime.From.Mailboxes.FirstOrDefault()?.Name    ?? string.Empty,
@@ -155,9 +196,7 @@ public class ImapService(
                 HasAttachment = mime.Attachments.Any(),
                 ReceivedAt    = mime.Date.UtcDateTime,
                 SyncedAt      = DateTime.UtcNow,
-            };
-
-            db.InboxEmails.Add(email);
+            });
         }
 
         await db.SaveChangesAsync(ct);
