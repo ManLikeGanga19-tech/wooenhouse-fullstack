@@ -192,6 +192,12 @@ try
     builder.Services.AddHostedService<FollowupSchedulerService>();
     builder.Services.AddHostedService<AccountsSchedulerService>();
 
+    // ─── Mailbox (IMAP) ───────────────────────────────────────────────────────
+    builder.Services.Configure<MailboxConfig>(
+        builder.Configuration.GetSection("Mailboxes"));
+    builder.Services.AddScoped<IImapService, ImapService>();
+    builder.Services.AddHostedService<MailboxSyncService>();
+
     // ─── Controllers ─────────────────────────────────────────────────────────
     builder.Services.AddControllers(options =>
     {

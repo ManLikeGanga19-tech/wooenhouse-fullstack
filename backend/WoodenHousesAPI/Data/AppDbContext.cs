@@ -18,6 +18,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<AuditLog>              AuditLogs              => Set<AuditLog>();
     public DbSet<AgentTask>             AgentTasks             => Set<AgentTask>();
     public DbSet<AgentContext>          AgentContexts          => Set<AgentContext>();
+    public DbSet<InboxEmail>            InboxEmails            => Set<InboxEmail>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -157,6 +158,21 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         {
             e.HasKey(c => c.Key);
             e.Property(c => c.UpdatedAt).HasDefaultValueSql("NOW()");
+        });
+
+        // InboxEmail
+        modelBuilder.Entity<InboxEmail>(e =>
+        {
+            e.HasKey(i => i.Id);
+            e.Property(i => i.IsRead).HasDefaultValue(false);
+            e.Property(i => i.IsStarred).HasDefaultValue(false);
+            e.Property(i => i.HasAttachment).HasDefaultValue(false);
+            e.Property(i => i.SyncedAt).HasDefaultValueSql("NOW()");
+            e.Property(i => i.ReceivedAt).HasDefaultValueSql("NOW()");
+            // Dedup index: one row per (account, folder, uid)
+            e.HasIndex(i => new { i.AccountEmail, i.Folder, i.Uid }).IsUnique();
+            e.HasIndex(i => i.ReceivedAt);
+            e.HasIndex(i => i.AccountEmail);
         });
     }
 }

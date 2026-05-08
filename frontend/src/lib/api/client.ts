@@ -229,6 +229,25 @@ export const api = {
       },
     },
 
+    mailbox: {
+      getAccounts: () =>
+        apiClient.get<MailboxAccount[]>("/api/admin/mailbox/accounts"),
+      getEmails: (params: { account: string; folder?: string; page?: number; q?: string }) =>
+        apiClient.get<MailboxEmailsResponse>("/api/admin/mailbox/emails", { params }),
+      getEmail: (id: string) =>
+        apiClient.get<MailboxEmailDetail>(`/api/admin/mailbox/emails/${id}`),
+      patchEmail: (id: string, data: { isRead?: boolean; isStarred?: boolean; folder?: string }) =>
+        apiClient.patch<{ id: string; isRead: boolean; isStarred: boolean; folder: string }>(`/api/admin/mailbox/emails/${id}`, data),
+      deleteEmail: (id: string) =>
+        apiClient.delete(`/api/admin/mailbox/emails/${id}`),
+      getCounts: (account: string) =>
+        apiClient.get<MailboxFolderCount[]>("/api/admin/mailbox/counts", { params: { account } }),
+      sync: (account?: string) =>
+        apiClient.post<{ message: string }>("/api/admin/mailbox/sync", null, { params: { account } }),
+      compose: (data: ComposeEmailData) =>
+        apiClient.post<{ message: string; id: string }>("/api/admin/mailbox/compose", data),
+    },
+
   },
 
   // Public blog
@@ -556,6 +575,61 @@ export interface AgentHealthAgent {
   description: string;
   schedule:    string;
   stats:       AgentHealthAgentStats;
+}
+
+// ─── Mailbox types ────────────────────────────────────────────────────────────
+
+export interface MailboxAccount {
+  email:       string;
+  displayName: string;
+  color:       string;
+  hasPassword: boolean;
+}
+
+export interface MailboxEmailSummary {
+  id:            string;
+  accountEmail:  string;
+  folder:        string;
+  subject:       string;
+  fromAddress:   string;
+  fromName:      string;
+  toAddresses:   string;
+  isRead:        boolean;
+  isStarred:     boolean;
+  hasAttachment: boolean;
+  receivedAt:    string;
+  preview:       string | null;
+}
+
+export interface MailboxEmailDetail extends MailboxEmailSummary {
+  ccAddresses: string | null;
+  textBody:    string | null;
+  htmlBody:    string | null;
+  messageId:   string;
+  syncedAt:    string;
+}
+
+export interface MailboxEmailsResponse {
+  total:    number;
+  page:     number;
+  pageSize: number;
+  items:    MailboxEmailSummary[];
+}
+
+export interface MailboxFolderCount {
+  folder: string;
+  total:  number;
+  unread: number;
+}
+
+export interface ComposeEmailData {
+  from:       string;
+  to:         string;
+  subject:    string;
+  cc?:        string;
+  body?:      string;
+  htmlBody?:  string;
+  inReplyTo?: string;
 }
 
 export interface AgentHealth {

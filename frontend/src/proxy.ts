@@ -19,6 +19,8 @@ export function proxy(request: NextRequest) {
   const isAdminDomain =
     hostname === ADMIN_DOMAIN ||
     hostname.startsWith("admin.") ||
+    hostname === "localhost" ||
+    hostname.startsWith("localhost:") ||
     request.nextUrl.searchParams.get("_admin") === "1" ||
     request.cookies.get("wh_is_admin")?.value === "1";
 
