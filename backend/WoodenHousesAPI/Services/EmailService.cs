@@ -406,6 +406,65 @@ public class EmailService(
             "resend", fromAddress, toEmail);
     }
 
+    public async Task ComposeEmailAsync(
+        string fromAddress, string fromDisplay, string toEmail,
+        string subject, string htmlBody,
+        string? cc = null, string? inReplyTo = null)
+    {
+        logger.LogInformation("[EMAIL] Compose → {To} | {Subject}", toEmail, subject);
+
+        var msg = Build(fromAddress, fromDisplay, toEmail, subject, htmlBody);
+        if (cc is not null)
+        {
+            msg.Cc = new Resend.EmailAddressList();
+            msg.Cc.Add(cc);
+        }
+        if (inReplyTo is not null)
+        {
+            msg.Headers ??= new Dictionary<string, string>();
+            msg.Headers["In-Reply-To"] = inReplyTo;
+        }
+
+        string status = "sent";
+        string? error = null;
+
+        try
+        {
+            await resend.EmailSendAsync(msg);
+            logger.LogInformation("[EMAIL] Compose sent OK → {To}", toEmail);
+        }
+        catch (Exception ex)
+        {
+            status = "failed";
+            error  = ex.Message;
+            logger.LogError(ex, "[EMAIL] Compose FAILED → {To} | {Error}", toEmail, ex.Message);
+        }
+
+        try
+        {
+            using var scope = services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.EmailLogs.Add(new EmailLog
+            {
+                Type         = "compose",
+                FromAddress  = fromAddress,
+                ToAddress    = toEmail,
+                Subject      = subject,
+                HtmlBody     = htmlBody,
+                Status       = status,
+                ErrorMessage = error,
+            });
+            await db.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "[EMAIL] Could not persist compose log → {To}", toEmail);
+        }
+
+        if (status == "failed")
+            throw new InvalidOperationException(error ?? "Email delivery failed");
+    }
+
     public async Task SendAdminReportAsync(string toEmail, string subject, string htmlBody)
     {
         logger.LogInformation("[EMAIL] Admin report → {To}", toEmail);

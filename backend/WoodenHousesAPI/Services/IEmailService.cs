@@ -11,5 +11,6 @@ public interface IEmailService
     Task SendNewsletterBroadcastAsync(IEnumerable<string> recipients, string subject, string content);
     Task SendAgentEmailAsync(string toEmail, string subject, string htmlBody, CancellationToken ct = default);
     Task ResendEmailAsync(string fromAddress, string toEmail, string subject, string htmlBody);
+    Task ComposeEmailAsync(string fromAddress, string fromDisplay, string toEmail, string subject, string htmlBody, string? cc = null, string? inReplyTo = null);
     Task SendAdminReportAsync(string toEmail, string subject, string htmlBody);
 }

@@ -652,6 +652,11 @@ function MailboxTab() {
                     replyTo={replyTarget ?? undefined}
                     onClose={() => { setCompose(null); setReplyTarget(null) }}
                     onSent={() => {
+                        setActiveFolder("sent")
+                        setPage(1)
+                        setSearch("")
+                        setSelectedId(null)
+                        setShowDetail(false)
                         loadEmails(activeAcct, "sent", 1, "")
                         loadCounts(activeAcct)
                     }}

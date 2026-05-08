@@ -178,7 +178,8 @@ public class AdminMailboxController(
 
         try
         {
-            await email.ResendEmailAsync(req.From, req.To, req.Subject, req.HtmlBody ?? WrapPlainText(req.Body ?? ""));
+            var htmlBody = req.HtmlBody ?? WrapPlainText(req.Body ?? "");
+            await email.ComposeEmailAsync(req.From, fromAccount.DisplayName, req.To, req.Subject, htmlBody, req.Cc, req.InReplyTo);
 
             // Save to Sent folder in our DB
             var sent = new InboxEmail
@@ -193,7 +194,7 @@ public class AdminMailboxController(
                 ToAddresses  = req.To,
                 CcAddresses  = req.Cc,
                 TextBody     = req.Body,
-                HtmlBody     = req.HtmlBody ?? WrapPlainText(req.Body ?? ""),
+                HtmlBody     = htmlBody,
                 IsRead       = true,
                 ReceivedAt   = DateTime.UtcNow,
             };
@@ -205,7 +206,7 @@ public class AdminMailboxController(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to send compose email from {From} to {To}", req.From, req.To);
-            return StatusCode(500, new { error = "Failed to send email" });
+            return StatusCode(500, new { error = ex.Message });
         }
     }
 
