@@ -16,6 +16,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useUIStore } from "@/lib/store/uiStore";
 import NotificationBell from "@/components/layout/NotificationBell";
 import InstallPWA from "@/components/admin/InstallPWA";
+import Image from "next/image";
 
 interface HeaderProps {
     title?: string;
@@ -40,19 +41,30 @@ export default function Header({ title }: HeaderProps) {
             className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b border-gray-200 bg-white px-4 md:px-6"
             style={{ paddingTop: "env(safe-area-inset-top)" }}
         >
-            {/* Desktop-only menu button (mobile uses BottomTabBar) */}
-            <Button
-                variant="ghost"
-                size="icon"
-                className="hidden md:hidden"
-                onClick={() => setSidebarOpen(true)}
-            >
-                <Menu size={20} />
-            </Button>
+            {/* Mobile logo — visible only when sidebar is hidden */}
+            <div className="flex md:hidden items-center gap-2">
+                <div
+                    className="flex h-9 w-9 items-center justify-center rounded-lg shrink-0 overflow-hidden"
+                    style={{ backgroundColor: "#8B5E3C" }}
+                >
+                    <Image
+                        src="/woodenhouse-logo.jpg"
+                        alt="WoodenHouses"
+                        width={36}
+                        height={36}
+                        className="object-contain"
+                        priority
+                    />
+                </div>
+                <div className="flex flex-col leading-tight">
+                    <span className="text-sm font-bold" style={{ color: "#8B5E3C" }}>WoodenHouses</span>
+                    <span className="text-[10px] text-gray-400 leading-none">Admin Panel</span>
+                </div>
+            </div>
 
-            {/* Page title - hidden on very small screens */}
+            {/* Page title - desktop only */}
             {title && (
-                <h1 className="text-lg md:text-xl font-semibold text-gray-900 hidden sm:block">
+                <h1 className="text-lg md:text-xl font-semibold text-gray-900 hidden md:block">
                     {title}
                 </h1>
             )}

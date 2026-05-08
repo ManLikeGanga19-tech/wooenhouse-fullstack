@@ -80,7 +80,7 @@ function ComposeModal({
     }
 
     return (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4">
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/40 p-4 pb-[calc(1rem+env(safe-area-inset-bottom)+56px)] sm:pb-4">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col">
                 {/* Header */}
                 <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
