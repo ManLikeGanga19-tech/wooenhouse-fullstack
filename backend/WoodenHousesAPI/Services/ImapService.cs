@@ -39,30 +39,37 @@ public class ImapService(
             return;
         }
 
+        // Hard per-account timeout so a bad connection never stalls the whole sync cycle
+        using var perAccountCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        perAccountCts.CancelAfter(TimeSpan.FromSeconds(30));
+        var token = perAccountCts.Token;
+
         using var client = new ImapClient();
-        client.ServerCertificateValidationCallback = (s, c, h, e) => true; // bypass cPanel self-signed cert
+        client.Timeout = 20_000; // 20 s socket-level timeout
+        client.ServerCertificateValidationCallback = (s, c, h, e) => true; // bypass hosting self-signed cert
 
         try
         {
-            await client.ConnectAsync(cfg.Value.ImapHost, cfg.Value.ImapPort, SecureSocketOptions.SslOnConnect, ct);
-            await client.AuthenticateAsync(account.Email, account.Password, ct);
+            await client.ConnectAsync(cfg.Value.ImapHost, cfg.Value.ImapPort, SecureSocketOptions.SslOnConnect, token);
+            await client.AuthenticateAsync(account.Email, account.Password, token);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "IMAP connect/auth failed for {Email}", account.Email);
+            logger.LogError(ex, "IMAP connect/auth failed for {Email} on {Host}:{Port} — {Msg}",
+                account.Email, cfg.Value.ImapHost, cfg.Value.ImapPort, ex.Message);
             return;
         }
 
         foreach (var (folderKey, aliases) in FolderAliases)
         {
-            if (ct.IsCancellationRequested) break;
+            if (token.IsCancellationRequested) break;
 
-            var folder = await OpenFolderAsync(client, aliases, ct);
+            var folder = await OpenFolderAsync(client, aliases, token);
             if (folder is null) continue;
 
             try
             {
-                await SyncFolderAsync(account.Email, folderKey, folder, ct);
+                await SyncFolderAsync(account.Email, folderKey, folder, token);
             }
             catch (Exception ex)
             {
@@ -70,11 +77,11 @@ public class ImapService(
             }
             finally
             {
-                await folder.CloseAsync(false, ct);
+                await folder.CloseAsync(false, CancellationToken.None);
             }
         }
 
-        await client.DisconnectAsync(true, ct);
+        await client.DisconnectAsync(true, CancellationToken.None);
     }
 
     private static async Task<IMailFolder?> OpenFolderAsync(
