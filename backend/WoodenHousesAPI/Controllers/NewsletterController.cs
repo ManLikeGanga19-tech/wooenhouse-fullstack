@@ -34,11 +34,12 @@ public class NewsletterController(AppDbContext db, IRecaptchaService recaptcha, 
 
         var (isSpam, spamReason) = SpamDetector.Check(request.Hp, request.LoadedAt);
 
-        // reCAPTCHA v3 — only check if honeypot/timing passed
+        // reCAPTCHA v3 — only check if honeypot/timing passed. Flags spam ONLY
+        // when Google positively verifies the token as a bot; a missing or
+        // unverifiable token fails open so real signups are never lost.
         if (!isSpam)
         {
-            var (rcOk, _) = await recaptcha.VerifyAsync(request.RecaptchaToken);
-            if (!rcOk)
+            if (await recaptcha.VerifyAsync(request.RecaptchaToken) == RecaptchaResult.Bot)
             {
                 isSpam     = true;
                 spamReason = "recaptcha";

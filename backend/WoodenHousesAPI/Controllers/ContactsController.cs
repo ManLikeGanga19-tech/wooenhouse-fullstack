@@ -27,11 +27,12 @@ public class ContactsController(
         // 1. Spam detection — always save silently, never reveal detection to caller
         var (isSpam, spamReason) = SpamDetector.Check(request.Hp, request.LoadedAt);
 
-        // 2. reCAPTCHA v3 — only check if honeypot/timing passed
+        // 2. reCAPTCHA v3 — only check if honeypot/timing passed. Flags spam ONLY
+        //    when Google positively verifies the token as a bot; a missing or
+        //    unverifiable token fails open so real leads are never lost.
         if (!isSpam)
         {
-            var (rcOk, _) = await recaptcha.VerifyAsync(request.RecaptchaToken);
-            if (!rcOk)
+            if (await recaptcha.VerifyAsync(request.RecaptchaToken) == RecaptchaResult.Bot)
             {
                 isSpam     = true;
                 spamReason = "recaptcha";
