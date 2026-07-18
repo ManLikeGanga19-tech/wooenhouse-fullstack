@@ -8,6 +8,7 @@ using MimeKit;
 using WoodenHousesAPI.Data;
 using WoodenHousesAPI.Models;
 
+using static WoodenHousesAPI.Common.LogSanitizer;
 namespace WoodenHousesAPI.Services;
 
 public interface IImapService
@@ -35,7 +36,7 @@ public class ImapService(
     {
         if (string.IsNullOrWhiteSpace(account.Password))
         {
-            logger.LogWarning("Skipping {Email} — no password configured", account.Email);
+            logger.LogWarning("Skipping {Email} — no password configured", MaskEmail(account.Email));
             return;
         }
 
@@ -56,7 +57,7 @@ public class ImapService(
         catch (Exception ex)
         {
             logger.LogError(ex, "IMAP connect/auth failed for {Email} on {Host}:{Port} — {Msg}",
-                account.Email, cfg.Value.ImapHost, cfg.Value.ImapPort, ex.Message);
+                MaskEmail(account.Email), cfg.Value.ImapHost, cfg.Value.ImapPort, Clean(ex.Message));
             return;
         }
 
@@ -73,7 +74,7 @@ public class ImapService(
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Error syncing {Folder} for {Email}", folderKey, account.Email);
+                logger.LogError(ex, "Error syncing {Folder} for {Email}", folderKey, MaskEmail(account.Email));
             }
             finally
             {
@@ -117,7 +118,7 @@ public class ImapService(
         {
             // First ever sync — pull full history
             logger.LogInformation("Full historical sync: {Email}/{Folder} ({Count} messages)",
-                accountEmail, folderKey, folder.Count);
+                MaskEmail(accountEmail), folderKey, folder.Count);
             uids = await folder.SearchAsync(SearchQuery.All, ct);
         }
         else
@@ -129,11 +130,11 @@ public class ImapService(
 
             if (uids.Count == 0)
             {
-                logger.LogDebug("No new messages in {Email}/{Folder}", accountEmail, folderKey);
+                logger.LogDebug("No new messages in {Email}/{Folder}", MaskEmail(accountEmail), folderKey);
                 return;
             }
             logger.LogInformation("Delta sync: {Email}/{Folder} — {Count} new",
-                accountEmail, folderKey, uids.Count);
+                MaskEmail(accountEmail), folderKey, uids.Count);
         }
 
         // Process in batches so we don't load all bodies at once
@@ -180,7 +181,7 @@ public class ImapService(
             catch (Exception ex)
             {
                 logger.LogWarning(ex, "Could not fetch body for UID {Uid} in {Email}/{Folder}",
-                    uid, accountEmail, folderKey);
+                    uid, MaskEmail(accountEmail), folderKey);
                 continue;
             }
 

@@ -5,6 +5,7 @@ using WoodenHousesAPI.Data;
 using WoodenHousesAPI.Models;
 using WoodenHousesAPI.Services;
 
+using static WoodenHousesAPI.Common.LogSanitizer;
 namespace WoodenHousesAPI.Controllers.Admin;
 
 [ApiController]
@@ -252,11 +253,11 @@ public class AdminAgentsController(
                 var result = await agent.ProcessUnhandledContactsAsync();
                 log.LogInformation(
                     "[AdminAgents] Batch triggered by {Admin} — queued={Queued} failed={Failed} skipped={Skipped}",
-                    adminEmail, result.Queued, result.Failed, result.Skipped);
+                    MaskEmail(adminEmail), result.Queued, result.Failed, result.Skipped);
             }
             catch (Exception ex)
             {
-                log.LogError(ex, "[AdminAgents] Batch processing failed (triggered by {Admin})", adminEmail);
+                log.LogError(ex, "[AdminAgents] Batch processing failed (triggered by {Admin})", MaskEmail(adminEmail));
             }
         });
 
@@ -365,11 +366,11 @@ public class AdminAgentsController(
                 var result = await agent.RunScheduledFollowupsAsync();
                 log.LogInformation(
                     "[AdminAgents] Follow-ups triggered by {Admin} — queued={Q} failed={F}",
-                    adminEmail, result.Queued, result.Failed);
+                    MaskEmail(adminEmail), result.Queued, result.Failed);
             }
             catch (Exception ex)
             {
-                log.LogError(ex, "[AdminAgents] Follow-up run failed (triggered by {Admin})", adminEmail);
+                log.LogError(ex, "[AdminAgents] Follow-up run failed (triggered by {Admin})", MaskEmail(adminEmail));
             }
         });
 
@@ -393,11 +394,11 @@ public class AdminAgentsController(
                 var result = await agent.RunWeeklyAsync();
                 log.LogInformation(
                     "[AdminAgents] Accounts triggered by {Admin} — remindersQueued={R} reportSent={S}",
-                    adminEmail, result.PaymentRemindersQueued, result.ReportSent);
+                    MaskEmail(adminEmail), result.PaymentRemindersQueued, result.ReportSent);
             }
             catch (Exception ex)
             {
-                log.LogError(ex, "[AdminAgents] Accounts run failed (triggered by {Admin})", adminEmail);
+                log.LogError(ex, "[AdminAgents] Accounts run failed (triggered by {Admin})", MaskEmail(adminEmail));
             }
         });
 

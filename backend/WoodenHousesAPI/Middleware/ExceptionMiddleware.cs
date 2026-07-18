@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 
+using static WoodenHousesAPI.Common.LogSanitizer;
 namespace WoodenHousesAPI.Middleware;
 
 /// <summary>
@@ -21,7 +22,7 @@ public class ExceptionMiddleware(
         catch (Exception ex)
         {
             logger.LogError(ex, "Unhandled exception on {Method} {Path}",
-                context.Request.Method, context.Request.Path);
+                Clean(context.Request.Method), Clean(context.Request.Path.Value));
 
             await HandleExceptionAsync(context, ex);
         }

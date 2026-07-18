@@ -1,5 +1,6 @@
 using WoodenHousesAPI.Models;
 
+using static WoodenHousesAPI.Common.LogSanitizer;
 namespace WoodenHousesAPI.Data;
 
 /// <summary>
@@ -40,7 +41,7 @@ public static class DatabaseSeeder
             existing.Name         = name;
             existing.PasswordHash = hash;
             await db.SaveChangesAsync();
-            logger.LogInformation("Admin user updated: {Email}", email);
+            logger.LogInformation("Admin user updated: {Email}", MaskEmail(email));
             return;
         }
 
@@ -52,7 +53,7 @@ public static class DatabaseSeeder
             Role         = "superadmin",
         });
         await db.SaveChangesAsync();
-        logger.LogInformation("Admin user seeded: {Email}", email);
+        logger.LogInformation("Admin user seeded: {Email}", MaskEmail(email));
     }
 
     // ─── Site Settings ────────────────────────────────────────────────────────

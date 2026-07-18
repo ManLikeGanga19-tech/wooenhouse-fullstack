@@ -6,6 +6,7 @@ using WoodenHousesAPI.Data;
 using WoodenHousesAPI.Models;
 using WoodenHousesAPI.Services;
 
+using static WoodenHousesAPI.Common.LogSanitizer;
 namespace WoodenHousesAPI.Controllers.Admin;
 
 [ApiController]
@@ -159,7 +160,7 @@ public class AdminMailboxController(
                 try { await imap.SyncAccountAsync(acc); }
                 catch (Exception ex)
                 {
-                    logger.LogError(ex, "Manual sync failed for {Email}", acc.Email);
+                    logger.LogError(ex, "Manual sync failed for {Email}", MaskEmail(acc.Email));
                 }
             }
         });
@@ -205,7 +206,7 @@ public class AdminMailboxController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to send compose email from {From} to {To}", req.From, req.To);
+            logger.LogError(ex, "Failed to send compose email from {From} to {To}", MaskEmail(req.From), MaskEmail(req.To));
             return StatusCode(500, new { error = ex.Message });
         }
     }
