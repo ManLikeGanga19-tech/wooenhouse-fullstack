@@ -33,6 +33,10 @@ public class EmailService(
     private const string LogoUrl         = "https://woodenhouseskenya.com/woodenhouse-logo.jpg";
     private const string SiteUrl         = "https://woodenhouseskenya.com";
 
+    // Admin dashboard lives on its own subdomain — links to it must NOT use the
+    // public site domain (the site proxy redirects /dashboard away).
+    private readonly string _adminUrl = config["Frontend:AdminUrl"] ?? "https://admin.woodenhouseskenya.com";
+
     // ─── Professional email layout ────────────────────────────────────────────
 
     private static string Layout(string innerContent) => $"""
@@ -201,7 +205,7 @@ public class EmailService(
               {(safeMessage != null ? safeMessage : "<em style='color:#999;'>No message provided.</em>")}
             </div>
             <div style="text-align:center;">
-              <a href="https://woodenhouseskenya.com/dashboard/contacts"
+              <a href="{_adminUrl}/dashboard/contacts"
                  style="background:#8B5E3C;color:#ffffff;text-decoration:none;padding:12px 28px;border-radius:6px;font-size:14px;font-weight:600;display:inline-block;">
                 View in Dashboard →
               </a>
@@ -378,7 +382,7 @@ public class EmailService(
               </tr>
             </table>
             <div style="text-align:center;">
-              <a href="https://woodenhouseskenya.com/dashboard/newsletter"
+              <a href="{_adminUrl}/dashboard/newsletter"
                  style="background:#8B5E3C;color:#ffffff;text-decoration:none;padding:12px 28px;border-radius:6px;font-size:14px;font-weight:600;display:inline-block;">
                 View Subscribers →
               </a>
