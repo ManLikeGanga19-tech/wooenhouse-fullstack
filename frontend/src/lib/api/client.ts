@@ -88,6 +88,10 @@ export const api = {
     getAll: () => apiClient.get<Service[]>("/api/services"),
   },
 
+  houseTypes: {
+    getAll: () => apiClient.get<HouseTypesResponse>("/api/house-types"),
+  },
+
   // Admin (protected — requires auth cookie)
   admin: {
     contacts: {
@@ -227,6 +231,11 @@ export const api = {
           headers: { "Content-Type": "multipart/form-data" },
         })
       },
+    },
+
+    system: {
+      notifyUpdate: () =>
+        apiClient.post<{ message: string }>("/api/admin/system/notify-update"),
     },
 
     mailbox: {
@@ -410,6 +419,20 @@ export interface Service {
   features:    string; // JSON string
   sortOrder:   number;
   status:      string;
+}
+
+export interface HouseType {
+  bedrooms:        number;
+  label:           string;
+  averagePriceUsd: number;
+  buildTime:       string;
+}
+
+export interface HouseTypesResponse {
+  currency:  string;  // "USD"
+  usdToKes:  number;  // indicative rate for the approximate KES figure
+  note:      string;
+  types:     HouseType[];
 }
 
 export interface PaginatedResponse<T> {

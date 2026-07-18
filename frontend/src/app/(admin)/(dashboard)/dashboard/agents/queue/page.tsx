@@ -30,6 +30,35 @@ const STATUS_META: Record<string, { label: string; color: string; bg: string }> 
     failed:           { label: "Failed",          color: "#991B1B", bg: "#FEE2E2" },
 }
 
+// ─── HTML ⇄ plain text ────────────────────────────────────────────────────────
+// The agent drafts a full HTML email. The boss should edit READABLE TEXT, not
+// markup — so we strip the draft to text for editing, then re-format the edited
+// text into a clean email on send. (If he doesn't edit, the original HTML is sent.)
+function htmlToText(html: string): string {
+    return html
+        .replace(/<style[\s\S]*?<\/style>/gi, "")
+        .replace(/<head[\s\S]*?<\/head>/gi, "")
+        .replace(/<li[^>]*>/gi, "• ")
+        .replace(/<\/(p|div|h[1-6]|li|tr)>/gi, "\n")
+        .replace(/<br\s*\/?>/gi, "\n")
+        .replace(/<[^>]+>/g, "")
+        .replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&")
+        .replace(/&lt;/gi, "<").replace(/&gt;/gi, ">")
+        .replace(/&quot;/gi, '"').replace(/&#39;/gi, "'")
+        .split("\n").map((l) => l.trim()).join("\n")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim()
+}
+
+function textToHtml(text: string): string {
+    const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    const paragraphs = esc(text.trim())
+        .split(/\n{2,}/)
+        .map((p) => `<p style="margin:0 0 16px;">${p.replace(/\n/g, "<br>")}</p>`)
+        .join("")
+    return `<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#333;">${paragraphs}</div>`
+}
+
 export default function AgentQueuePage() {
     const [tasks,       setTasks]      = useState<AgentTask[]>([])
     const [failedTasks, setFailedTasks]= useState<AgentTask[]>([])
@@ -72,13 +101,20 @@ export default function AgentQueuePage() {
         setRejecting(false)
     }
 
+    // Edit in plain text; convert the draft to text when entering edit mode.
+    const toggleEdit = () => {
+        if (!editing && selected) setEditBody(htmlToText(selected.draftBody))
+        setEditing(!editing)
+    }
+
     const approve = async () => {
         if (!selected) return
         setSubmitting(true)
         try {
             await api.admin.agents.approve(selected.id, {
-                subject: editing ? editSubject : undefined,
-                body:    editing ? editBody    : undefined,
+                subject: editing ? editSubject               : undefined,
+                // The boss edited plain text — format it into a clean HTML email.
+                body:    editing ? textToHtml(editBody)      : undefined,
             })
             toast.success("Email approved and sent")
             setSelected(null)
@@ -105,6 +141,26 @@ export default function AgentQueuePage() {
         }
     }
 
+    // Replace a stale draft with a fresh one built from the latest prices/context:
+    // reject the current draft, then re-run the agent (which now regenerates it).
+    const regenerate = async () => {
+        if (!selected?.contactId) return
+        setSubmitting(true)
+        try {
+            await api.admin.agents.reject(selected.id, "Superseded — regenerated with latest pricing/context")
+            await api.admin.agents.generateReply(selected.contactId)
+            toast.success("Regenerated", {
+                description: "A fresh draft with the latest prices is in the queue.",
+            })
+            setSelected(null)
+            await load()
+        } catch (err: unknown) {
+            toast.error(err instanceof Error ? err.message : "Regenerate failed")
+        } finally {
+            setSubmitting(false)
+        }
+    }
+
     const retryContact = async (contactId: string) => {
         setRetrying(contactId)
         try {
@@ -116,6 +172,23 @@ export default function AgentQueuePage() {
         } finally {
             setRetrying(null)
         }
+    }
+
+    // Regenerate every failed task with the current (grounded) agent, one at a time
+    // so we respect Claude rate limits. Each produces a fresh draft for review.
+    const retryAllFailed = async () => {
+        const contactIds = [...new Set(failedTasks.map((t) => t.contactId).filter(Boolean) as string[])]
+        if (contactIds.length === 0) return
+        setRetrying("__all__")
+        let ok = 0
+        for (const id of contactIds) {
+            try { await api.admin.agents.generateReply(id); ok++ } catch { /* keep going */ }
+        }
+        toast.success(`Regenerated ${ok}/${contactIds.length} failed drafts`, {
+            description: "Fresh drafts are in the approval queue.",
+        })
+        setRetrying(null)
+        await load()
     }
 
     // ── Detail view ───────────────────────────────────────────────────────────
@@ -150,7 +223,7 @@ export default function AgentQueuePage() {
                                 </p>
                             </div>
                         </div>
-                        <Button variant="outline" size="sm" onClick={() => setEditing(!editing)}>
+                        <Button variant="outline" size="sm" onClick={toggleEdit}>
                             <Edit2 size={13} className="mr-1.5" />
                             {editing ? "Cancel Edit" : "Edit Draft"}
                         </Button>
@@ -205,12 +278,18 @@ export default function AgentQueuePage() {
                         </div>
 
                         {editing ? (
-                            <Textarea
-                                value={editBody}
-                                onChange={(e) => setEditBody(e.target.value)}
-                                rows={16}
-                                className="font-mono text-xs"
-                            />
+                            <div>
+                                <Textarea
+                                    value={editBody}
+                                    onChange={(e) => setEditBody(e.target.value)}
+                                    rows={16}
+                                    className="text-sm leading-relaxed"
+                                    placeholder="Write the email in plain text…"
+                                />
+                                <p className="text-xs text-gray-400 mt-1.5">
+                                    Write in plain text — it&apos;s formatted into a clean, well-spaced email automatically when you send.
+                                </p>
+                            </div>
                         ) : previewMode === "rendered" ? (
                             <iframe
                                 srcDoc={currentBody}
@@ -259,6 +338,11 @@ export default function AgentQueuePage() {
                             <Button variant="outline" onClick={reject} disabled={submitting} className="border-red-400 text-red-600 hover:bg-red-50">
                                 <XCircle size={14} className="mr-1.5" />
                                 {submitting ? "Rejecting…" : "Confirm Reject"}
+                            </Button>
+                        )}
+                        {selected.contactId && !rejecting && (
+                            <Button variant="outline" onClick={regenerate} disabled={submitting} className="ml-auto">
+                                <RefreshCw size={14} className="mr-1.5" /> Regenerate
                             </Button>
                         )}
                     </div>
@@ -352,9 +436,21 @@ export default function AgentQueuePage() {
                     {/* Failed tasks */}
                     {failedTasks.length > 0 && (
                         <div className="space-y-3 mt-6">
-                            <h2 className="text-sm font-semibold text-red-500 uppercase tracking-wide flex items-center gap-2">
-                                <AlertTriangle size={14} /> Failed ({failedTasks.length})
-                            </h2>
+                            <div className="flex items-center justify-between">
+                                <h2 className="text-sm font-semibold text-red-500 uppercase tracking-wide flex items-center gap-2">
+                                    <AlertTriangle size={14} /> Failed ({failedTasks.length})
+                                </h2>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="border-red-200 text-red-600 hover:bg-red-50"
+                                    disabled={retrying === "__all__"}
+                                    onClick={retryAllFailed}
+                                >
+                                    <RotateCcw size={13} className={retrying === "__all__" ? "animate-spin mr-1.5" : "mr-1.5"} />
+                                    {retrying === "__all__" ? "Regenerating…" : "Retry all failed"}
+                                </Button>
+                            </div>
                             {failedTasks.map((task) => {
                                 const agent = AGENT_META[task.agentType] ?? AGENT_META.sales
                                 return (

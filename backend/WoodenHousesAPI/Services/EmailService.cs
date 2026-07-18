@@ -472,4 +472,49 @@ public class EmailService(
             Build(InfoAddress, DisplayName, toEmail, subject, htmlBody),
             "agent", InfoAddress, toEmail);
     }
+
+    public async Task SendSystemUpdateAsync(IEnumerable<string> recipients)
+    {
+        const string subject = "System update — instant website pricing + safer AI replies";
+
+        var content = """
+            <h2 style="margin:0 0 20px;color:#8B5E3C;font-size:20px;font-weight:700;text-align:center;">System Update</h2>
+            <p style="margin:0 0 18px;color:#444;font-size:14px;line-height:1.6;">
+              A few improvements are now live on the Wooden Houses Kenya system:
+            </p>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:24px;">
+              <tr><td style="padding:11px 0;border-bottom:1px solid #F0E8DF;color:#444;font-size:14px;line-height:1.6;">
+                <strong style="color:#8B5E3C;">1. Instant price estimates on the website.</strong><br>
+                When a customer picks their house size on the contact page they immediately see the estimated
+                average price and build time, shown as a "from" estimate with the final price confirmed after a free site visit.
+              </td></tr>
+              <tr><td style="padding:11px 0;border-bottom:1px solid #F0E8DF;color:#444;font-size:14px;line-height:1.6;">
+                <strong style="color:#8B5E3C;">2. AI replies are reviewed before sending.</strong><br>
+                The assistant no longer emails clients automatically — every draft waits in the approval queue,
+                so nothing goes out unchecked.
+              </td></tr>
+              <tr><td style="padding:11px 0;border-bottom:1px solid #F0E8DF;color:#444;font-size:14px;line-height:1.6;">
+                <strong style="color:#8B5E3C;">3. Accurate quoting.</strong><br>
+                The assistant now works strictly from the approved price list and never quotes a figure that isn't in it.
+              </td></tr>
+              <tr><td style="padding:11px 0;color:#444;font-size:14px;line-height:1.6;">
+                <strong style="color:#8B5E3C;">4. Reliability fixed.</strong><br>
+                The errors that were stopping some replies from being drafted have been resolved.
+              </td></tr>
+            </table>
+            <p style="margin:0;color:#777;font-size:13px;line-height:1.6;">
+              No pricing was changed — the existing figures are now used consistently across the website and the assistant.
+            </p>
+            """;
+
+        var htmlBody = Layout(content);
+
+        foreach (var to in recipients.Where(r => !string.IsNullOrWhiteSpace(r)))
+        {
+            logger.LogInformation("[EMAIL] System update → {To}", to);
+            await SendAndLog(
+                Build(InfoAddress, DisplayName, to, subject, htmlBody),
+                "agent", InfoAddress, to);
+        }
+    }
 }

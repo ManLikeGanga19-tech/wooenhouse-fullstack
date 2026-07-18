@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { useGoogleReCaptcha } from "react-google-recaptcha-v3"
 import Image from "next/image"
 import {
@@ -21,7 +21,7 @@ import {
   Home, Hammer, CheckCircle2,
 } from "lucide-react"
 import { toast } from "sonner"
-import { api } from "@/lib/api/client"
+import { api, type HouseType } from "@/lib/api/client"
 
 const INITIAL_FORM = {
   firstName: "", lastName: "", email: "", phone: "",
@@ -37,12 +37,32 @@ export default function ContactClient() {
   const [hp, setHp] = useState("")
   const { executeRecaptcha } = useGoogleReCaptcha()
 
+  // Price estimator — deterministic lookup from the backend's authoritative table.
+  const [houseTypes, setHouseTypes] = useState<HouseType[]>([])
+  const [usdToKes,   setUsdToKes]   = useState(130)
+  const [bedrooms,   setBedrooms]   = useState("")
+
+  useEffect(() => {
+    api.houseTypes.getAll()
+      .then((r) => { setHouseTypes(r.data.types); setUsdToKes(r.data.usdToKes) })
+      .catch(() => { /* estimator is optional — the form still works without it */ })
+  }, [])
+
+  const selectedType = houseTypes.find((t) => String(t.bedrooms) === bedrooms)
+  const fmtUsd = (n: number) => `USD ${n.toLocaleString("en-US")}`
+  const fmtKes = (n: number) => `KES ${Math.round(n).toLocaleString("en-US")}`
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
 
     try {
       const recaptchaToken = executeRecaptcha ? await executeRecaptcha("contact_form") : undefined
+
+      // Capture the estimate the visitor was shown so admin + the sales agent see it.
+      const enquiryPrefix = selectedType
+        ? `[Enquiry: ${selectedType.label} — estimate shown: from ${fmtUsd(selectedType.averagePriceUsd)}]\n\n`
+        : ""
 
       await api.contact.submit({
         name:           `${formData.firstName} ${formData.lastName}`.trim(),
@@ -52,7 +72,7 @@ export default function ContactClient() {
         location:       formData.projectLocation,
         budget:         formData.budget,
         timeline:       formData.timeline,
-        message:        formData.message,
+        message:        `${enquiryPrefix}${formData.message}`,
         newsletter:     formData.newsletter,
         hp,
         loadedAt:       loadedAt.current,
@@ -205,7 +225,7 @@ export default function ContactClient() {
                       </p>
                     </div>
                     <Button
-                      onClick={() => { setSubmitted(false); setFormData(INITIAL_FORM) }}
+                      onClick={() => { setSubmitted(false); setFormData(INITIAL_FORM); setBedrooms("") }}
                       variant="outline"
                       className="border-2 hover:scale-105 transition-all"
                       style={{ borderColor: "#8B5E3C", color: "#8B5E3C" }}
@@ -266,6 +286,47 @@ export default function ContactClient() {
                       </SelectContent>
                     </Select>
                   </div>
+
+                  {/* House size + instant price estimate */}
+                  {houseTypes.length > 0 && (
+                    <div className="space-y-2">
+                      <Label>House Size — get an instant estimate</Label>
+                      <Select value={bedrooms} onValueChange={setBedrooms}>
+                        <SelectTrigger className="border-2 focus:border-[#8B5E3C]">
+                          <SelectValue placeholder="How many bedrooms?" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {houseTypes.map((t) => (
+                            <SelectItem key={t.bedrooms} value={String(t.bedrooms)}>
+                              {t.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+
+                      {selectedType && (
+                        <div
+                          className="mt-3 rounded-lg border-2 p-4"
+                          style={{ borderColor: "#C49A6C", background: "#FAF6F0" }}
+                          data-aos="fade-up"
+                        >
+                          <p className="text-sm text-gray-600">Estimated average for a {selectedType.label.toLowerCase()}</p>
+                          <p className="text-2xl font-bold" style={{ color: "#8B5E3C" }}>
+                            From {fmtUsd(selectedType.averagePriceUsd)}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            approx. {fmtKes(selectedType.averagePriceUsd * usdToKes)}
+                          </p>
+                          <p className="text-sm text-gray-700 mt-2">
+                            Typically builds in <span className="font-medium">{selectedType.buildTime}</span>.
+                          </p>
+                          <p className="text-xs text-gray-500 mt-2">
+                            Average estimate — final price depends on size and finishes, and is confirmed after a free site visit.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Project Details */}
                   <div className="grid sm:grid-cols-2 gap-4">

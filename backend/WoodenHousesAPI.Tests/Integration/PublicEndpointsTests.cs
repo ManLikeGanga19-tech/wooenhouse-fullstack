@@ -82,6 +82,27 @@ public class PublicEndpointsTests(TestWebApplicationFactory factory)
         body.Should().OnlyContain(s => s.Status == "published");
     }
 
+    // ─── House types (price estimator) ────────────────────────────────────────
+
+    [Fact]
+    public async Task GetHouseTypes_ReturnsAllFiveTypesWithCorrectPrices()
+    {
+        var response = await _client.GetAsync("/api/house-types");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadFromJsonAsync<HouseTypesResponse>();
+        body!.Currency.Should().Be("USD");
+        body.UsdToKes.Should().BeGreaterThan(0);
+        body.Types.Should().HaveCount(5);
+
+        // The boss's exact figures — these must never silently drift.
+        body.Types.Should().ContainEquivalentOf(new { Bedrooms = 1, AveragePriceUsd = 19_500 });
+        body.Types.Should().ContainEquivalentOf(new { Bedrooms = 2, AveragePriceUsd = 27_000 });
+        body.Types.Should().ContainEquivalentOf(new { Bedrooms = 3, AveragePriceUsd = 50_000 });
+        body.Types.Should().ContainEquivalentOf(new { Bedrooms = 4, AveragePriceUsd = 77_000 });
+        body.Types.Should().ContainEquivalentOf(new { Bedrooms = 5, AveragePriceUsd = 100_000 });
+    }
+
     // ─── Newsletter ───────────────────────────────────────────────────────────
 
     [Fact]
@@ -167,4 +188,6 @@ public class PublicEndpointsTests(TestWebApplicationFactory factory)
     private record MessageResponse(string Message);
     private record ProjectResponse(string Id, string Slug, bool Featured, string Status);
     private record ServiceResponse(string Id, string Title, string Status);
+    private record HouseTypeResponse(int Bedrooms, string Label, int AveragePriceUsd, string BuildTime);
+    private record HouseTypesResponse(string Currency, decimal UsdToKes, string Note, List<HouseTypeResponse> Types);
 }
