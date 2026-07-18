@@ -12,20 +12,26 @@ namespace WoodenHousesAPI.Controllers.Admin;
 [Authorize]
 public class AdminSystemController(IEmailService email, IConfiguration config) : ControllerBase
 {
+    public record SystemUpdateRequest(string Subject, string Message, string[]? Recipients);
+
     /// <summary>
-    /// Sends the branded "system update" notification email to the operators.
-    /// Recipients default to the team addresses; override via "SystemUpdate:Recipients"
-    /// (comma-separated) in configuration.
+    /// Sends a branded "system update" email to the team. Recipients default to the
+    /// operators (override per-request, or via "SystemUpdate:Recipients" in config).
+    /// Reusable — send any future update the same way.
     /// </summary>
     [HttpPost("notify-update")]
-    public async Task<IActionResult> NotifyUpdate()
+    public async Task<IActionResult> NotifyUpdate([FromBody] SystemUpdateRequest req)
     {
-        var configured = config["SystemUpdate:Recipients"];
-        var recipients = string.IsNullOrWhiteSpace(configured)
-            ? new[] { "ericabuto@gmail.com", "orwenjodaniel19@gmail.com" }
-            : configured.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (string.IsNullOrWhiteSpace(req.Subject) || string.IsNullOrWhiteSpace(req.Message))
+            return BadRequest(new { message = "Subject and message are required." });
 
-        await email.SendSystemUpdateAsync(recipients);
-        return Ok(new { message = $"System-update email sent to {recipients.Length} recipient(s)." });
+        var recipients =
+            req.Recipients is { Length: > 0 } r ? r
+            : !string.IsNullOrWhiteSpace(config["SystemUpdate:Recipients"])
+                ? config["SystemUpdate:Recipients"]!.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                : ["ericabuto@gmail.com", "orwenjodaniel19@gmail.com"];
+
+        await email.SendSystemUpdateAsync(recipients, req.Subject.Trim(), req.Message.Trim());
+        return Ok(new { message = $"Update sent to {recipients.Length} recipient(s)." });
     }
 }

@@ -246,7 +246,7 @@ internal sealed class NullEmailService : IEmailService
     public Task SendAdminReportAsync(string toEmail, string subject, string htmlBody)
         => Task.CompletedTask;
 
-    public Task SendSystemUpdateAsync(IEnumerable<string> recipients)
+    public Task SendSystemUpdateAsync(IEnumerable<string> recipients, string subject, string message)
         => Task.CompletedTask;
 }
 

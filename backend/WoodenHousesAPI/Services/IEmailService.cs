@@ -14,6 +14,6 @@ public interface IEmailService
     Task ComposeEmailAsync(string fromAddress, string fromDisplay, string toEmail, string subject, string htmlBody, string? cc = null, string? inReplyTo = null);
     Task SendAdminReportAsync(string toEmail, string subject, string htmlBody);
 
-    /// <summary>Sends the branded "system update" notification to each recipient.</summary>
-    Task SendSystemUpdateAsync(IEnumerable<string> recipients);
+    /// <summary>Sends a branded "system update" email (subject + plain-text message) to each recipient.</summary>
+    Task SendSystemUpdateAsync(IEnumerable<string> recipients, string subject, string message);
 }

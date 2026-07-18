@@ -234,8 +234,8 @@ export const api = {
     },
 
     system: {
-      notifyUpdate: () =>
-        apiClient.post<{ message: string }>("/api/admin/system/notify-update"),
+      notifyUpdate: (data: { subject: string; message: string; recipients?: string[] }) =>
+        apiClient.post<{ message: string }>("/api/admin/system/notify-update", data),
     },
 
     mailbox: {
