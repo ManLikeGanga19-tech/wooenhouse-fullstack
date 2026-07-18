@@ -1,6 +1,7 @@
 using Resend;
 using WoodenHousesAPI.Data;
 using WoodenHousesAPI.Models;
+using static WoodenHousesAPI.Common.LogSanitizer;
 
 namespace WoodenHousesAPI.Services;
 
@@ -136,13 +137,13 @@ public class EmailService(
         try
         {
             await resend.EmailSendAsync(msg);
-            logger.LogInformation("[EMAIL] {Type} sent OK → {To}", type, toAddress);
+            logger.LogInformation("[EMAIL] {Type} sent OK → {To}", type, MaskEmail(toAddress));
         }
         catch (Exception ex)
         {
             status = "failed";
             error  = ex.Message;
-            logger.LogError(ex, "[EMAIL] FAILED {Type} → {To} | {Error}", type, toAddress, ex.Message);
+            logger.LogError(ex, "[EMAIL] FAILED {Type} → {To} | {Error}", type, MaskEmail(toAddress), Clean(ex.Message));
         }
 
         try
@@ -163,7 +164,7 @@ public class EmailService(
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "[EMAIL] Could not persist email log for {Type} → {To}", type, toAddress);
+            logger.LogWarning(ex, "[EMAIL] Could not persist email log for {Type} → {To}", type, MaskEmail(toAddress));
         }
     }
 
@@ -172,7 +173,7 @@ public class EmailService(
     public async Task SendContactNotificationAsync(string fromName, string fromEmail, string? message)
     {
         var adminAddress = config["Email:AdminNotifyAddress"] ?? "director@woodenhouseskenya.com";
-        logger.LogInformation("[EMAIL] Contact alert → {Admin}", adminAddress);
+        logger.LogInformation("[EMAIL] Contact alert → {Admin}", MaskEmail(adminAddress));
 
         var safeName    = H(fromName);
         var safeEmail   = H(fromEmail);
@@ -214,7 +215,7 @@ public class EmailService(
 
     public async Task SendContactAutoReplyAsync(string toEmail, string toName)
     {
-        logger.LogInformation("[EMAIL] Auto-reply → {Client}", toEmail);
+        logger.LogInformation("[EMAIL] Auto-reply → {Client}", MaskEmail(toEmail));
 
         var safeName = H(toName);
 
@@ -255,7 +256,7 @@ public class EmailService(
     public async Task SendQuoteToCustomerAsync(
         string toEmail, string customerName, string quoteNumber, string quoteHtml)
     {
-        logger.LogInformation("[EMAIL] Quote {Quote} → {Client}", quoteNumber, toEmail);
+        logger.LogInformation("[EMAIL] Quote {Quote} → {Client}", quoteNumber, MaskEmail(toEmail));
 
         await SendAndLog(
             Build(AccountsAddress, $"{DisplayName} · Accounts", toEmail,
@@ -300,7 +301,7 @@ public class EmailService(
 
     public async Task SendNewsletterWelcomeAsync(string toEmail, string? name)
     {
-        logger.LogInformation("[EMAIL] Newsletter welcome → {Email}", toEmail);
+        logger.LogInformation("[EMAIL] Newsletter welcome → {Email}", MaskEmail(toEmail));
 
         var greeting = string.IsNullOrWhiteSpace(name) ? "Welcome" : $"Welcome, {H(name)}!";
 
@@ -352,7 +353,7 @@ public class EmailService(
     public async Task SendNewsletterSubscriptionAlertAsync(string email, string? name)
     {
         var adminAddress = config["Email:AdminNotifyAddress"] ?? "director@woodenhouseskenya.com";
-        logger.LogInformation("[EMAIL] Newsletter subscription alert → {Admin}", adminAddress);
+        logger.LogInformation("[EMAIL] Newsletter subscription alert → {Admin}", MaskEmail(adminAddress));
 
         var safeEmail   = H(email);
         var displayName = string.IsNullOrWhiteSpace(name) ? "—" : H(name);
@@ -392,7 +393,7 @@ public class EmailService(
 
     public async Task SendAgentEmailAsync(string toEmail, string subject, string htmlBody, CancellationToken ct = default)
     {
-        logger.LogInformation("[EMAIL] Agent email → {To} | {Subject}", toEmail, subject);
+        logger.LogInformation("[EMAIL] Agent email → {To} | {Subject}", MaskEmail(toEmail), Clean(subject));
         await SendAndLog(
             Build(SalesAddress, DisplayName, toEmail, subject, htmlBody),
             "agent", SalesAddress, toEmail);
@@ -400,7 +401,7 @@ public class EmailService(
 
     public async Task ResendEmailAsync(string fromAddress, string toEmail, string subject, string htmlBody)
     {
-        logger.LogInformation("[EMAIL] Resend → {To} | {Subject}", toEmail, subject);
+        logger.LogInformation("[EMAIL] Resend → {To} | {Subject}", MaskEmail(toEmail), Clean(subject));
         await SendAndLog(
             Build(fromAddress, DisplayName, toEmail, subject, htmlBody),
             "resend", fromAddress, toEmail);
@@ -411,7 +412,7 @@ public class EmailService(
         string subject, string htmlBody,
         string? cc = null, string? inReplyTo = null)
     {
-        logger.LogInformation("[EMAIL] Compose → {To} | {Subject}", toEmail, subject);
+        logger.LogInformation("[EMAIL] Compose → {To} | {Subject}", MaskEmail(toEmail), Clean(subject));
 
         var msg = Build(fromAddress, fromDisplay, toEmail, subject, htmlBody);
         if (cc is not null)
@@ -431,13 +432,13 @@ public class EmailService(
         try
         {
             await resend.EmailSendAsync(msg);
-            logger.LogInformation("[EMAIL] Compose sent OK → {To}", toEmail);
+            logger.LogInformation("[EMAIL] Compose sent OK → {To}", MaskEmail(toEmail));
         }
         catch (Exception ex)
         {
             status = "failed";
             error  = ex.Message;
-            logger.LogError(ex, "[EMAIL] Compose FAILED → {To} | {Error}", toEmail, ex.Message);
+            logger.LogError(ex, "[EMAIL] Compose FAILED → {To} | {Error}", MaskEmail(toEmail), Clean(ex.Message));
         }
 
         try
@@ -458,7 +459,7 @@ public class EmailService(
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "[EMAIL] Could not persist compose log → {To}", toEmail);
+            logger.LogWarning(ex, "[EMAIL] Could not persist compose log → {To}", MaskEmail(toEmail));
         }
 
         if (status == "failed")
@@ -467,7 +468,7 @@ public class EmailService(
 
     public async Task SendAdminReportAsync(string toEmail, string subject, string htmlBody)
     {
-        logger.LogInformation("[EMAIL] Admin report → {To}", toEmail);
+        logger.LogInformation("[EMAIL] Admin report → {To}", MaskEmail(toEmail));
         await SendAndLog(
             Build(InfoAddress, DisplayName, toEmail, subject, htmlBody),
             "agent", InfoAddress, toEmail);
@@ -490,7 +491,7 @@ public class EmailService(
 
         foreach (var to in recipients.Where(r => !string.IsNullOrWhiteSpace(r)))
         {
-            logger.LogInformation("[EMAIL] System update → {To}", to);
+            logger.LogInformation("[EMAIL] System update → {To}", MaskEmail(to));
             await SendAndLog(
                 Build(InfoAddress, DisplayName, to, subject, htmlBody),
                 "agent", InfoAddress, to);

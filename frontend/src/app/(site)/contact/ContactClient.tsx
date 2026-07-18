@@ -25,8 +25,8 @@ import { api, type HouseType } from "@/lib/api/client"
 
 const INITIAL_FORM = {
   firstName: "", lastName: "", email: "", phone: "",
-  serviceType: "", projectLocation: "", budget: "",
-  timeline: "", message: "", newsletter: false,
+  serviceType: "", projectLocation: "",
+  message: "", newsletter: false,
 }
 
 export default function ContactClient() {
@@ -70,8 +70,9 @@ export default function ContactClient() {
         phone:          formData.phone,
         serviceType:    formData.serviceType,
         location:       formData.projectLocation,
-        budget:         formData.budget,
-        timeline:       formData.timeline,
+        // Budget + build time now come from the selected estimate, not dropdowns.
+        budget:         selectedType ? fmtUsd(selectedType.averagePriceUsd) : "",
+        timeline:       selectedType ? selectedType.buildTime : "",
         message:        `${enquiryPrefix}${formData.message}`,
         newsletter:     formData.newsletter,
         hp,
@@ -328,49 +329,12 @@ export default function ContactClient() {
                     </div>
                   )}
 
-                  {/* Project Details */}
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="projectLocation">Project Location</Label>
-                      <Input id="projectLocation" placeholder="e.g., Nairobi, Naivasha" value={formData.projectLocation}
-                        onChange={(e) => setFormData({ ...formData, projectLocation: e.target.value })}
-                        className="border-2 focus:border-[#8B5E3C]" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Budget Range (KSH)</Label>
-                      <Select value={formData.budget}
-                        onValueChange={(value) => setFormData({ ...formData, budget: value })}>
-                        <SelectTrigger className="border-2 focus:border-[#8B5E3C]">
-                          <SelectValue placeholder="Select budget range" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="under-500k">Under 500K</SelectItem>
-                          <SelectItem value="500k-1m">500K – 1M</SelectItem>
-                          <SelectItem value="1m-2m">1M – 2M</SelectItem>
-                          <SelectItem value="2m-5m">2M – 5M</SelectItem>
-                          <SelectItem value="over-5m">Over 5M</SelectItem>
-                          <SelectItem value="flexible">Flexible</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  {/* Timeline */}
+                  {/* Project Location */}
                   <div className="space-y-2">
-                    <Label>Project Timeline</Label>
-                    <Select value={formData.timeline}
-                      onValueChange={(value) => setFormData({ ...formData, timeline: value })}>
-                      <SelectTrigger className="border-2 focus:border-[#8B5E3C]">
-                        <SelectValue placeholder="When do you want to start?" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="urgent">Urgent (Within 1 month)</SelectItem>
-                        <SelectItem value="1-3months">1–3 months</SelectItem>
-                        <SelectItem value="3-6months">3–6 months</SelectItem>
-                        <SelectItem value="6-12months">6–12 months</SelectItem>
-                        <SelectItem value="planning">Just planning</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Label htmlFor="projectLocation">Project Location</Label>
+                    <Input id="projectLocation" placeholder="e.g., Nairobi, Naivasha" value={formData.projectLocation}
+                      onChange={(e) => setFormData({ ...formData, projectLocation: e.target.value })}
+                      className="border-2 focus:border-[#8B5E3C]" />
                   </div>
 
                   {/* Message */}

@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using WoodenHousesAPI.Data;
 using WoodenHousesAPI.Models;
 
+using static WoodenHousesAPI.Common.LogSanitizer;
 namespace WoodenHousesAPI.Services;
 
 public record AccountsBatchResult(int PaymentRemindersQueued, int PaymentRemindersFailed, bool ReportSent);
@@ -194,7 +195,7 @@ public class AccountsAgentService(
             $"Weekly Business Report — {now:MMM d, yyyy} | Wooden Houses Kenya",
             html);
 
-        log.LogInformation("[AccountsAgent] Weekly report sent to {Admin}", adminEmail);
+        log.LogInformation("[AccountsAgent] Weekly report sent to {Admin}", MaskEmail(adminEmail));
     }
 
     private static string BuildReportHtml(
