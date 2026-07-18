@@ -202,8 +202,8 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>, IAsyncL
 /// </summary>
 internal sealed class NullRecaptchaService : IRecaptchaService
 {
-    public Task<(bool success, float score)> VerifyAsync(string? token)
-        => Task.FromResult((true, 1.0f));
+    public Task<RecaptchaResult> VerifyAsync(string? token)
+        => Task.FromResult(RecaptchaResult.Human);
 }
 
 /// <summary>
@@ -239,7 +239,14 @@ internal sealed class NullEmailService : IEmailService
     public Task ResendEmailAsync(string emailLogId, string toEmail, string subject, string htmlBody)
         => Task.CompletedTask;
 
+    public Task ComposeEmailAsync(string fromAddress, string fromDisplay, string toEmail, string subject,
+                                  string htmlBody, string? cc = null, string? inReplyTo = null)
+        => Task.CompletedTask;
+
     public Task SendAdminReportAsync(string toEmail, string subject, string htmlBody)
+        => Task.CompletedTask;
+
+    public Task SendSystemUpdateAsync(IEnumerable<string> recipients, string subject, string message)
         => Task.CompletedTask;
 }
 

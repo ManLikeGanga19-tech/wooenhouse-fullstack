@@ -472,4 +472,28 @@ public class EmailService(
             Build(InfoAddress, DisplayName, toEmail, subject, htmlBody),
             "agent", InfoAddress, toEmail);
     }
+
+    public async Task SendSystemUpdateAsync(IEnumerable<string> recipients, string subject, string message)
+    {
+        // Turn the admin's plain-text update into branded HTML paragraphs.
+        var encoded = H(message).Replace("\r\n", "\n").Trim();
+        var paragraphs = string.Join("", encoded
+            .Split("\n\n", StringSplitOptions.RemoveEmptyEntries)
+            .Select(p => $"""<p style="margin:0 0 16px;color:#444;font-size:14px;line-height:1.6;">{p.Replace("\n", "<br>")}</p>"""));
+
+        var content = $"""
+            <h2 style="margin:0 0 20px;color:#8B5E3C;font-size:20px;font-weight:700;text-align:center;">{H(subject)}</h2>
+            {paragraphs}
+            """;
+
+        var htmlBody = Layout(content);
+
+        foreach (var to in recipients.Where(r => !string.IsNullOrWhiteSpace(r)))
+        {
+            logger.LogInformation("[EMAIL] System update → {To}", to);
+            await SendAndLog(
+                Build(InfoAddress, DisplayName, to, subject, htmlBody),
+                "agent", InfoAddress, to);
+        }
+    }
 }

@@ -4,18 +4,43 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { api } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/store/authStore";
 import { toast } from "sonner";
-import { Lock, User, Globe } from "lucide-react";
+import { Lock, User, Globe, Megaphone, Send } from "lucide-react";
 
 export default function SettingsPage() {
     const user = useAuthStore(s => s.user);
 
     const [pwForm, setPwForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
     const [savingPw, setSavingPw] = useState(false);
+
+    const [update, setUpdate] = useState({ subject: "", message: "" });
+    const [sendingUpdate, setSendingUpdate] = useState(false);
+
+    const handleSendUpdate = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!update.subject.trim() || !update.message.trim()) {
+            toast.error("Add a subject and a message");
+            return;
+        }
+        setSendingUpdate(true);
+        try {
+            const res = await api.admin.system.notifyUpdate({
+                subject: update.subject.trim(),
+                message: update.message.trim(),
+            });
+            toast.success(res.data.message ?? "Update sent");
+            setUpdate({ subject: "", message: "" });
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Failed to send update");
+        } finally {
+            setSendingUpdate(false);
+        }
+    };
 
     const handleChangePassword = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -120,6 +145,51 @@ export default function SettingsPage() {
                         </div>
                         <Button type="submit" disabled={savingPw} style={{ backgroundColor: "#8B5E3C" }} className="text-white">
                             {savingPw ? "Updating..." : "Update Password"}
+                        </Button>
+                    </form>
+                </CardContent>
+            </Card>
+
+            {/* Send Team Update */}
+            <Card className="border-2 border-gray-200">
+                <CardHeader>
+                    <div className="flex items-center gap-2">
+                        <Megaphone size={20} style={{ color: "#8B5E3C" }} />
+                        <CardTitle style={{ color: "#8B5E3C" }}>Send Team Update</CardTitle>
+                    </div>
+                    <CardDescription>
+                        Email an update to the team using the branded template. Use this whenever you make a change to the system.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <form onSubmit={handleSendUpdate} className="space-y-4">
+                        <div className="space-y-2">
+                            <Label>Subject</Label>
+                            <Input
+                                value={update.subject}
+                                onChange={e => setUpdate(u => ({ ...u, subject: e.target.value }))}
+                                placeholder="e.g. New feature: instant website pricing"
+                                className="border-2"
+                                required
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Message</Label>
+                            <Textarea
+                                value={update.message}
+                                onChange={e => setUpdate(u => ({ ...u, message: e.target.value }))}
+                                placeholder="Write the update in plain text. Leave a blank line between paragraphs."
+                                rows={8}
+                                className="border-2 text-sm leading-relaxed"
+                                required
+                            />
+                            <p className="text-xs text-gray-400">
+                                Sends to the team addresses on file. Plain text is formatted into a clean email automatically.
+                            </p>
+                        </div>
+                        <Button type="submit" disabled={sendingUpdate} style={{ backgroundColor: "#8B5E3C" }} className="text-white">
+                            <Send size={14} className="mr-1.5" />
+                            {sendingUpdate ? "Sending…" : "Send Update"}
                         </Button>
                     </form>
                 </CardContent>

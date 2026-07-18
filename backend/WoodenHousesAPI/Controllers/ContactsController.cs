@@ -15,10 +15,8 @@ namespace WoodenHousesAPI.Controllers;
 [Route("api/contact")]
 public class ContactsController(
     AppDbContext db,
-    IEmailService emailService,
     IRecaptchaService recaptcha,
-    ISalesAgentService salesAgent,
-    ILogger<ContactsController> logger) : ControllerBase
+    IServiceScopeFactory scopeFactory) : ControllerBase
 {
     [HttpPost]
     [EnableRateLimiting("strict")]
@@ -27,11 +25,12 @@ public class ContactsController(
         // 1. Spam detection — always save silently, never reveal detection to caller
         var (isSpam, spamReason) = SpamDetector.Check(request.Hp, request.LoadedAt);
 
-        // 2. reCAPTCHA v3 — only check if honeypot/timing passed
+        // 2. reCAPTCHA v3 — only check if honeypot/timing passed. Flags spam ONLY
+        //    when Google positively verifies the token as a bot; a missing or
+        //    unverifiable token fails open so real leads are never lost.
         if (!isSpam)
         {
-            var (rcOk, _) = await recaptcha.VerifyAsync(request.RecaptchaToken);
-            if (!rcOk)
+            if (await recaptcha.VerifyAsync(request.RecaptchaToken) == RecaptchaResult.Bot)
             {
                 isSpam     = true;
                 spamReason = "recaptcha";
@@ -82,25 +81,47 @@ public class ContactsController(
             }
         }
 
-        // 5. For real submissions: notify admin and fire the sales agent (fire-and-forget)
+        // 5. For real submissions: notify admin and draft the sales-agent reply.
+        //    This runs AFTER the response returns, so it MUST use its own DI scope —
+        //    the request-scoped AppDbContext is disposed the moment we return, and the
+        //    old code crashed here with ObjectDisposedException. We capture the values
+        //    the background work needs, then resolve fresh scoped services inside Task.Run.
         if (!isSpam)
         {
-            _ = emailService
-                .SendContactNotificationAsync(request.Name, request.Email, request.Message)
-                .ContinueWith(t => logger.LogError(t.Exception,
-                    "[EMAIL] Notification failed for contact from {Email}", request.Email),
-                    CancellationToken.None,
-                    TaskContinuationOptions.OnlyOnFaulted,
-                    TaskScheduler.Default);
+            var contactId  = contact.Id;
+            var name       = request.Name;
+            var email      = request.Email;
+            var message    = request.Message;
 
-            // Sales agent handles the personalised reply — fire-and-forget, auto-sends immediately
-            _ = salesAgent
-                .HandleContactAsync(contact.Id, AgentDispatchMode.AutoSend, "contact_form")
-                .ContinueWith(t => logger.LogError(t.Exception,
-                    "[SalesAgent] Failed for contact {ContactId}", contact.Id),
-                    CancellationToken.None,
-                    TaskContinuationOptions.OnlyOnFaulted,
-                    TaskScheduler.Default);
+            _ = Task.Run(async () =>
+            {
+                using var scope = scopeFactory.CreateScope();
+                var sp        = scope.ServiceProvider;
+                var email0    = sp.GetRequiredService<IEmailService>();
+                var salesAgent = sp.GetRequiredService<ISalesAgentService>();
+                var log        = sp.GetRequiredService<ILogger<ContactsController>>();
+
+                try
+                {
+                    await email0.SendContactNotificationAsync(name, email, message);
+                }
+                catch (Exception ex)
+                {
+                    log.LogError(ex, "[EMAIL] Notification failed for contact from {Email}", email);
+                }
+
+                try
+                {
+                    // Draft the personalised reply and QUEUE it for admin approval — it is
+                    // no longer auto-sent, so a wrong quote can never reach a client unreviewed.
+                    await salesAgent.HandleContactAsync(
+                        contactId, AgentDispatchMode.QueueForApproval, "contact_form");
+                }
+                catch (Exception ex)
+                {
+                    log.LogError(ex, "[SalesAgent] Failed for contact {ContactId}", contactId);
+                }
+            });
         }
 
         return Ok(new { message = "Thank you! We will be in touch soon." });
