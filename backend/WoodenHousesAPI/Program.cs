@@ -14,6 +14,21 @@ using WoodenHousesAPI.Data;
 using WoodenHousesAPI.Middleware;
 using WoodenHousesAPI.Services;
 
+// ─── Container healthcheck probe ─────────────────────────────────────────────
+// Self-contained: the Docker HEALTHCHECK runs `dotnet WoodenHousesAPI.dll
+// --healthcheck`, which hits /health with the app's own runtime and exits 0/1 —
+// no curl/wget/apt in the image (smaller, builds offline).
+if (args.Contains("--healthcheck"))
+{
+    try
+    {
+        using var hc = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
+        var resp = await hc.GetAsync("http://127.0.0.1:8080/health");
+        Environment.Exit(resp.IsSuccessStatusCode ? 0 : 1);
+    }
+    catch { Environment.Exit(1); }
+}
+
 // ─── Serilog early init (captures startup errors too) ────────────────────────
 SerilogLog.Logger = new LoggerConfiguration()
     .WriteTo.Console()
