@@ -33,21 +33,43 @@ health check before *and* after; if ShuleHQ looks unhealthy *before*, stop.
 
 ---
 
-## Part 1 — DNS decision (read once)
+## Part 1 — DNS (actual topology, confirmed from the Cloudflare import)
 
-Two scenarios; the runbook branches only here.
+The domain was moved onto Cloudflare during Phase 3. Current live topology
+(NOT all-Render as first assumed):
 
-| Situation | Rehearsal DNS | Cutover DNS |
+| Host | Today | Proxy |
 |---|---|---|
-| **A. Domain live on Render via Cloudflare** (real traffic today) | add `staging` + `api.staging` records (proxied) | flip the existing `@`/`www`/`api`/`admin` records from Render's target to the VPS IP `94.72.102.13` |
-| **B. Domain not yet pointed anywhere** | add `staging` + `api.staging` records | add `@`/`www`/`api`/`admin` A records → `94.72.102.13` |
+| `woodenhouseskenya.com` (apex) | a2hosting `209.142.65.51` | proxied |
+| `www` | Vercel (CNAME) | proxied |
+| `admin` | Vercel (CNAME) | proxied |
+| API | Render (frontend calls the `.onrender.com` URL directly — no `api` DNS record yet) | — |
+| `mail`, `webmail`, `ftp`, `webdisk`, `cpanel`, `whm`, `cp*` | a2hosting | **DNS only** |
+| MX / SPF / DKIM / DMARC | a2hosting + Amazon SES + Resend | DNS only |
 
-In **both** cases Cloudflare stays **proxied (orange cloud)** for WAF/DDoS, and
-Caddy issues TLS via DNS-01, so the origin cert works even behind the proxy.
-**Never remove the `letsencrypt.org` CAA record** (playbook §9).
+**Rule that must hold at every step:** only the three *web* hosts are proxied
+(apex, www, admin). Email/FTP/cPanel stay **DNS only** — proxying them breaks
+mail (Cloudflare only proxies HTTP 80/443). Email + cPanel stay on a2hosting
+**untouched** through the entire migration.
 
-> Lower the TTL on the production records to **60s a day before cutover** so the
-> flip propagates fast and rollback is quick.
+**Cutover DNS changes** (in Cloudflare, at §3.3 — nothing before then):
+- `www` : CNAME→Vercel  →  **A → `94.72.102.13`** (proxied)
+- `admin` : CNAME→Vercel  →  **A → `94.72.102.13`** (proxied)
+- `woodenhouseskenya.com` (apex) : A→a2hosting → **A → `94.72.102.13`** (proxied)
+  — *only if the bare apex serves the marketing site; if it just redirects to
+  www or is cPanel-only, leave it and rely on www.*
+- **Add `api` : A → `94.72.102.13`** (proxied) — new hostname for the backend
+- Everything email/cPanel: **no change**
+
+Caddy issues TLS via Cloudflare DNS-01, so proxied (orange) is fine — the origin
+cert validates behind the proxy. After the zone is Active, set **SSL/TLS → Full
+(strict)** (both current origins have valid certs).
+
+> Lower the TTL on the web records to **60s the day before cutover** so the flip
+> propagates fast and rollback (point back to Vercel/a2hosting) is near-instant.
+
+> Because Cloudflare is now authoritative, any record a2hosting served that the
+> import missed would break — compare against a2hosting cPanel → Zone Editor once.
 
 ---
 
