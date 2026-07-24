@@ -28,36 +28,11 @@ export function ImageUpload({ value, onChange, onBusyChange, folder = "wooden-ho
     setProgress(0);
     onBusyChange?.(true);
     try {
-      // 1. Get a short-lived signed token from our backend (tiny request, no file bytes)
-      const { data: sig } = await api.admin.upload.signature(folder);
-
-      // 2. POST the file directly from the browser to Cloudinary — bypasses Render entirely
+      // Stream the file through our API to Contabo Object Storage; get the public URL.
       const fd = new FormData();
-      fd.append("file",      file);
-      fd.append("api_key",   sig.apiKey);
-      fd.append("timestamp", sig.timestamp.toString());
-      fd.append("signature", sig.signature);
-      fd.append("folder",    sig.folder);
-
-      await new Promise<void>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open("POST", sig.uploadUrl);
-        xhr.upload.onprogress = e => {
-          if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 100));
-        };
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            const result = JSON.parse(xhr.responseText) as { secure_url: string };
-            onChange(result.secure_url);
-            resolve();
-          } else {
-            const err = JSON.parse(xhr.responseText) as { error?: { message?: string } };
-            reject(new Error(err.error?.message ?? `Upload failed (${xhr.status})`));
-          }
-        };
-        xhr.onerror = () => reject(new Error("Network error during upload"));
-        xhr.send(fd);
-      });
+      fd.append("file", file);
+      const { data } = await api.admin.upload.image(fd, folder, setProgress);
+      onChange(data.url);
     } catch (err) {
       toast.error("Upload failed", { description: err instanceof Error ? err.message : undefined });
     } finally {

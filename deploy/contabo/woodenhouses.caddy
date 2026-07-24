@@ -1,0 +1,51 @@
+# Wooden Houses Kenya — Caddy site config
+#
+# Import from the main Caddyfile:  import /etc/caddy/sites/woodenhouses.caddy
+#
+# TLS via Cloudflare DNS-01 so the Cloudflare proxy (orange cloud) can stay ON for
+# WAF + DDoS — the same proven pattern ShuleHQ uses. Requires:
+#   • the caddy-dns/cloudflare module in the Caddy build (ShuleHQ's Caddy has it), and
+#   • a Cloudflare API token scoped to the woodenhouseskenya.com zone
+#     (Zone:Read + DNS:Edit), exported to Caddy as CF_API_TOKEN_WOODENHOUSES.
+#
+# Caddy reaches the app containers by name over the shared `edge` Docker network.
+
+(whk_tls) {
+	tls {
+		dns cloudflare {env.CF_API_TOKEN_WOODENHOUSES}
+		resolvers 1.1.1.1
+	}
+}
+
+(whk_headers) {
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options    "nosniff"
+		Referrer-Policy           "strict-origin-when-cross-origin"
+		-Server
+	}
+}
+
+# ─── Public marketing site ────────────────────────────────────────────────────
+woodenhouseskenya.com, www.woodenhouseskenya.com {
+	import whk_tls
+	import whk_headers
+	encode zstd gzip
+	reverse_proxy woodenhouses-frontend:3000
+}
+
+# ─── Admin dashboard (host-routed inside the Next app by proxy.ts) ────────────
+admin.woodenhouseskenya.com {
+	import whk_tls
+	import whk_headers
+	encode zstd gzip
+	reverse_proxy woodenhouses-frontend:3000
+}
+
+# ─── API ──────────────────────────────────────────────────────────────────────
+api.woodenhouseskenya.com {
+	import whk_tls
+	import whk_headers
+	encode zstd gzip
+	reverse_proxy woodenhouses-backend:8080
+}

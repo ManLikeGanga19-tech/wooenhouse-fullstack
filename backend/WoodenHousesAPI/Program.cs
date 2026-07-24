@@ -1,6 +1,7 @@
 using System.Text;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
@@ -12,6 +13,21 @@ using SerilogLog = Serilog.Log;
 using WoodenHousesAPI.Data;
 using WoodenHousesAPI.Middleware;
 using WoodenHousesAPI.Services;
+
+// ─── Container healthcheck probe ─────────────────────────────────────────────
+// Self-contained: the Docker HEALTHCHECK runs `dotnet WoodenHousesAPI.dll
+// --healthcheck`, which hits /health with the app's own runtime and exits 0/1 —
+// no curl/wget/apt in the image (smaller, builds offline).
+if (args.Contains("--healthcheck"))
+{
+    try
+    {
+        using var hc = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
+        var resp = await hc.GetAsync("http://127.0.0.1:8080/health");
+        Environment.Exit(resp.IsSuccessStatusCode ? 0 : 1);
+    }
+    catch { Environment.Exit(1); }
+}
 
 // ─── Serilog early init (captures startup errors too) ────────────────────────
 SerilogLog.Logger = new LoggerConfiguration()
@@ -114,6 +130,18 @@ try
         );
     });
 
+    // ─── Forwarded headers (behind Cloudflare → Caddy) ────────────────────────
+    // Make scheme/host/RemoteIp reflect the real request, not the reverse proxy.
+    // The app container is reachable ONLY via Caddy on the Docker network, so the
+    // upstream is trusted (KnownProxies/Networks cleared → accept the forwarded
+    // headers). Client-IP for rate limiting is resolved separately via ClientIp.
+    builder.Services.Configure<ForwardedHeadersOptions>(o =>
+    {
+        o.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+        o.KnownNetworks.Clear();
+        o.KnownProxies.Clear();
+    });
+
     // ─── Rate Limiting ────────────────────────────────────────────────────────
     builder.Services.AddRateLimiter(options =>
     {
@@ -121,23 +149,33 @@ try
 
         var isTest = builder.Environment.IsEnvironment("Testing");
 
-        // Strict: contact form & auth — 5 req/min (unlimited in tests)
-        options.AddFixedWindowLimiter("strict", o =>
-        {
-            o.PermitLimit          = isTest ? int.MaxValue : 5;
-            o.Window               = TimeSpan.FromMinutes(1);
-            o.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-            o.QueueLimit           = isTest ? int.MaxValue : 0;
-        });
+        // Partition on the REAL client IP (CF-Connecting-IP → X-Forwarded-For → peer)
+        // so limits are per-user. A non-partitioned limiter behind Cloudflare/Caddy
+        // would either be global (one user locks out everyone) or key on the proxy.
 
-        // Standard: general API — 60 req/min (unlimited in tests)
-        options.AddFixedWindowLimiter("standard", o =>
-        {
-            o.PermitLimit          = isTest ? int.MaxValue : 60;
-            o.Window               = TimeSpan.FromMinutes(1);
-            o.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-            o.QueueLimit           = isTest ? int.MaxValue : 2;
-        });
+        // Strict: contact form & auth — 5 req/min per client (unlimited in tests)
+        options.AddPolicy("strict", httpContext =>
+            RateLimitPartition.GetFixedWindowLimiter(
+                partitionKey: WoodenHousesAPI.Common.ClientIp.Get(httpContext),
+                factory: _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit          = isTest ? int.MaxValue : 5,
+                    Window               = TimeSpan.FromMinutes(1),
+                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                    QueueLimit           = isTest ? int.MaxValue : 0,
+                }));
+
+        // Standard: general API — 60 req/min per client (unlimited in tests)
+        options.AddPolicy("standard", httpContext =>
+            RateLimitPartition.GetFixedWindowLimiter(
+                partitionKey: WoodenHousesAPI.Common.ClientIp.Get(httpContext),
+                factory: _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit          = isTest ? int.MaxValue : 60,
+                    Window               = TimeSpan.FromMinutes(1),
+                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                    QueueLimit           = isTest ? int.MaxValue : 2,
+                }));
     });
 
     // ─── Response Compression ─────────────────────────────────────────────────
@@ -171,17 +209,37 @@ try
         o.ApiToken = builder.Configuration["Resend:ApiKey"] ?? string.Empty;
     });
 
-    // Use Cloudinary in production (Render has an ephemeral filesystem).
-    // Fall back to local disk storage when Cloudinary is not configured (dev).
-    if (!string.IsNullOrWhiteSpace(builder.Configuration["Cloudinary:CloudName"]))
-        builder.Services.AddScoped<IFileService, CloudinaryService>();
+    // Object storage: Contabo Object Storage (S3-compatible) in production;
+    // fall back to local disk when S3 is not configured (dev).
+    builder.Services.Configure<S3Settings>(builder.Configuration.GetSection("S3"));
+    if (!string.IsNullOrWhiteSpace(builder.Configuration["S3:Bucket"]))
+    {
+        builder.Services.AddSingleton<Amazon.S3.IAmazonS3>(_ =>
+        {
+            var s3 = builder.Configuration.GetSection("S3").Get<S3Settings>()!;
+            return new Amazon.S3.AmazonS3Client(
+                s3.AccessKey, s3.SecretKey,
+                new Amazon.S3.AmazonS3Config
+                {
+                    ServiceURL            = s3.ServiceUrl,
+                    ForcePathStyle        = true,             // Contabo uses path-style addressing
+                    AuthenticationRegion  = s3.Region,
+                });
+        });
+        builder.Services.AddScoped<IFileService, S3FileService>();
+    }
     else
+    {
         builder.Services.AddScoped<IFileService, FileService>();
+    }
 
     // ─── Claude AI Agent Services ─────────────────────────────────────────────
     builder.Services.Configure<ClaudeSettings>(
         builder.Configuration.GetSection("Claude"));
-    builder.Services.AddHttpClient<IClaudeService, ClaudeService>();
+    // Explicit timeout so a stuck Claude call can't hold an agent/thread for the
+    // default 100s. Concurrency is bounded inside ClaudeService (see the gate).
+    builder.Services.AddHttpClient<IClaudeService, ClaudeService>(c =>
+        c.Timeout = TimeSpan.FromSeconds(60));
     builder.Services.AddScoped<IAgentContextService, AgentContextService>();
     builder.Services.AddScoped<ISalesAgentService,    SalesAgentService>();
     builder.Services.AddScoped<IQuoteAgentService,    QuoteAgentService>();
@@ -286,6 +344,10 @@ try
     // ─── Middleware Pipeline (ORDER MATTERS) ──────────────────────────────────
 
     // 1. Exception handler — must be first so it catches everything below
+    // MUST be first: rewrite scheme/RemoteIp from Caddy's forwarded headers
+    // before anything (rate limiting, auth, redirects) reads them.
+    app.UseForwardedHeaders();
+
     app.UseMiddleware<ExceptionMiddleware>();
 
     // 2. Security headers

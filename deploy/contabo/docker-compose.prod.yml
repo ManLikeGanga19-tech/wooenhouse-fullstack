@@ -1,0 +1,70 @@
+# Wooden Houses Kenya — production compose (Contabo VPS, co-hosted with ShuleHQ)
+#
+# Run with an explicit project name so nothing collides with ShuleHQ:
+#   docker compose -p woodenhouses -f docker-compose.prod.yml up -d
+#
+# Images are built in CI, `docker save`d, shipped, and `docker load`ed on the box
+# — NEVER pulled here (the box has no registry creds; §6.1). Tags are local.
+#
+# Isolation (§3):
+#   • internal          — private backend↔frontend, not shared with ShuleHQ
+#   • edge (external)    — Caddy's network; only the two web containers join it
+#   • postgres (external)— the shared Postgres network; only backend joins it
+# Set the external network NAMES to match the box in .env.production.
+
+name: woodenhouses
+
+services:
+  backend:
+    image: woodenhouses-backend:${IMAGE_TAG:-latest}
+    container_name: woodenhouses-backend
+    restart: unless-stopped
+    env_file: [ .env.production ]
+    networks: [ internal, edge, postgres ]
+    # Hard caps — the agent tier can never starve ShuleHQ (§2).
+    cpus: 1.0
+    mem_limit: 768m
+    mem_reservation: 256m
+    healthcheck:
+      test: ["CMD", "dotnet", "WoodenHousesAPI.dll", "--healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+    security_opt: [ "no-new-privileges:true" ]
+
+  frontend:
+    image: woodenhouses-frontend:${IMAGE_TAG:-latest}
+    container_name: woodenhouses-frontend
+    restart: unless-stopped
+    env_file: [ .env.production ]
+    networks: [ internal, edge ]
+    cpus: 0.5
+    mem_limit: 512m
+    mem_reservation: 128m
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000/',r=>process.exit(r.statusCode<500?0:1)).on('error',()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 25s
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+    security_opt: [ "no-new-privileges:true" ]
+
+networks:
+  # Private to WHK — backend↔frontend only, no external reach.
+  internal:
+    internal: true
+  # Caddy's network (already exists on the box). Only the web containers join it.
+  edge:
+    external: true
+    name: ${EDGE_NETWORK:-caddy_net}
+  # The shared Postgres network (already exists). Only backend joins it.
+  postgres:
+    external: true
+    name: ${POSTGRES_NETWORK:-shulehq_default}

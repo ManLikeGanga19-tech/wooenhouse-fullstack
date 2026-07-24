@@ -59,6 +59,12 @@ public class ClaudeService(
         DefaultIgnoreCondition      = JsonIgnoreCondition.WhenWritingNull,
     };
 
+    // One global gate across ALL agents and instances — bounds concurrent Claude
+    // calls so the agent tier can never flood the shared box's CPU or the token
+    // budget. Tune via CLAUDE_MAX_CONCURRENCY (default 3).
+    private static readonly SemaphoreSlim _gate = new(
+        int.TryParse(Environment.GetEnvironmentVariable("CLAUDE_MAX_CONCURRENCY"), out var n) && n > 0 ? n : 3);
+
     public async Task<ClaudeResult> CompleteAsync(
         string systemPrompt, string userMessage, CancellationToken ct = default, string? model = null)
     {
@@ -84,8 +90,20 @@ public class ClaudeService(
 
         log.LogInformation("[Claude] Sending request — model={Model}", resolvedModel);
 
-        var response = await http.PostAsync("https://api.anthropic.com/v1/messages", content, ct);
-        var body     = await response.Content.ReadAsStringAsync(ct);
+        // Hold the concurrency gate only for the network I/O, then release before
+        // the (local, fast) response processing below.
+        HttpResponseMessage response;
+        string body;
+        await _gate.WaitAsync(ct);
+        try
+        {
+            response = await http.PostAsync("https://api.anthropic.com/v1/messages", content, ct);
+            body     = await response.Content.ReadAsStringAsync(ct);
+        }
+        finally
+        {
+            _gate.Release();
+        }
 
         if (!response.IsSuccessStatusCode)
         {

@@ -12,6 +12,8 @@ const withPWA = require("@ducanh2912/next-pwa").default({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Self-contained server output for a small Docker image on the Contabo VPS.
+  output: "standalone",
   reactCompiler: true,
   turbopack: {},
 
@@ -20,7 +22,9 @@ const nextConfig = {
       // Backend-served uploads (project images uploaded via admin panel)
       { protocol: "https", hostname: "api.woodenhouseskenya.com" },
       { protocol: "https", hostname: "*.woodenhouseskenya.com" },
-      // Cloudinary CDN (production image storage)
+      // Contabo Object Storage (production media)
+      { protocol: "https", hostname: "*.contabostorage.com" },
+      // Cloudinary — legacy, for images uploaded before the migration; remove once migrated
       { protocol: "https", hostname: "res.cloudinary.com" },
       // Local dev
       { protocol: "http", hostname: "localhost" },
