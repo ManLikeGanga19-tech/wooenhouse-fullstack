@@ -1,0 +1,167 @@
+name: Deploy WHK → Contabo
+
+# Single deploy path for Wooden Houses Kenya (playbook §6.5 — never add a second
+# workflow that touches this host; two paths race and confuse each other).
+#
+# Flow (playbook §9):  build in CI → docker save → ship → docker load → compose up
+# Images are NEVER pulled on the box (§6.1) — the VPS has no registry credentials.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'deploy/contabo/**'
+      - '.github/workflows/deploy-contabo.yml'
+  workflow_dispatch:
+    inputs:
+      skip_neighbour_check:
+        description: 'Skip the ShuleHQ before/after health check (emergencies only)'
+        type: boolean
+        default: false
+
+# Never let two deploys touch the box at once.
+concurrency:
+  group: deploy-contabo-whk
+  cancel-in-progress: false
+
+env:
+  APP_DIR: /opt/woodenhouses
+  PROJECT: woodenhouses
+
+jobs:
+  # ───────────────────────────────────────────────────────────────────────────
+  # 1. Gate: nothing ships unless the code is green.
+  # ───────────────────────────────────────────────────────────────────────────
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Backend build + tests
+        run: |
+          dotnet build   backend/WoodenHousesAPI/WoodenHousesAPI.csproj -c Release --nologo
+          dotnet test    backend/WoodenHousesAPI.Tests/WoodenHousesAPI.Tests.csproj --nologo
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Frontend install + audit + build
+        working-directory: frontend
+        env:
+          NEXT_PUBLIC_API_URL:   ${{ vars.NEXT_PUBLIC_API_URL }}
+          NEXT_PUBLIC_SITE_URL:  ${{ vars.NEXT_PUBLIC_SITE_URL }}
+          NEXT_PUBLIC_ADMIN_URL: ${{ vars.NEXT_PUBLIC_ADMIN_URL }}
+        run: |
+          npm ci
+          npm audit --audit-level=high
+          npm run build
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # 2. Build images, ship the bundle, deploy, health-gate.
+  # ───────────────────────────────────────────────────────────────────────────
+  deploy:
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve image tag
+        id: tag
+        run: echo "tag=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+
+      # ── Neighbour safety BEFORE (playbook §3) ─────────────────────────────
+      # Checked from GitHub Actions, i.e. OUTSIDE the box (§6.9).
+      # A Cloudflare challenge is NOT an outage: 403 + cf-mitigated counts healthy.
+      - name: ShuleHQ health check (before)
+        if: ${{ !inputs.skip_neighbour_check }}
+        run: |
+          bash deploy/contabo/check-neighbour.sh "${{ vars.SHULEHQ_HEALTH_URL }}" "before"
+
+      # ── Build both images (NEXT_PUBLIC_* are build-time — §6.10) ──────────
+      - name: Build backend image
+        run: docker build -t "woodenhouses-backend:${{ steps.tag.outputs.tag }}" ./backend
+
+      - name: Build frontend image
+        run: |
+          docker build \
+            --build-arg NEXT_PUBLIC_API_URL='${{ vars.NEXT_PUBLIC_API_URL }}' \
+            --build-arg NEXT_PUBLIC_SITE_URL='${{ vars.NEXT_PUBLIC_SITE_URL }}' \
+            --build-arg NEXT_PUBLIC_ADMIN_URL='${{ vars.NEXT_PUBLIC_ADMIN_URL }}' \
+            --build-arg NEXT_PUBLIC_RECAPTCHA_SITE_KEY='${{ secrets.NEXT_PUBLIC_RECAPTCHA_SITE_KEY }}' \
+            -t "woodenhouses-frontend:${{ steps.tag.outputs.tag }}" ./frontend
+
+      # ── Bundle: images + EVERY bind-mounted file (§6.2) ───────────────────
+      - name: Build deploy bundle
+        run: |
+          set -Eeuo pipefail
+          TAG='${{ steps.tag.outputs.tag }}'
+          mkdir -p bundle/images
+          docker save "woodenhouses-backend:$TAG"  | gzip -1 > bundle/images/backend.tar.gz
+          docker save "woodenhouses-frontend:$TAG" | gzip -1 > bundle/images/frontend.tar.gz
+          cp deploy/contabo/docker-compose.prod.yml bundle/
+          cp deploy/contabo/woodenhouses.caddy      bundle/
+          cp deploy/contabo/deploy.sh               bundle/
+          chmod +x bundle/deploy.sh
+          du -sh bundle bundle/images/*
+
+      - name: Configure SSH
+        run: |
+          set -Eeuo pipefail
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${{ secrets.CONTABO_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H '${{ secrets.CONTABO_HOST }}' >> ~/.ssh/known_hosts 2>/dev/null
+
+      # ── Ship. .env.production comes from a secret and is written on the box
+      #    only (never committed, never echoed) — playbook §3 / §4.1.
+      - name: Ship bundle + env
+        run: |
+          set -Eeuo pipefail
+          SSH="ssh -o BatchMode=yes ${{ secrets.CONTABO_USER }}@${{ secrets.CONTABO_HOST }}"
+          $SSH "mkdir -p ${{ env.APP_DIR }}/images"
+          # NOTE: --delete would otherwise wipe state that lives only on the box.
+          # .env.production holds the secrets and .last_deployed_tag is what makes
+          # rollback possible — losing it silently disables rollback.
+          rsync -az --delete-after \
+            --exclude '.env.production' \
+            --exclude '.last_deployed_tag' \
+            -e "ssh -o BatchMode=yes" \
+            bundle/ "${{ secrets.CONTABO_USER }}@${{ secrets.CONTABO_HOST }}:${{ env.APP_DIR }}/"
+          $SSH "umask 077 && cat > ${{ env.APP_DIR }}/.env.production" <<'ENVEOF'
+          ${{ secrets.WHK_PRODUCTION_ENV }}
+          ENVEOF
+
+      - name: Deploy (load → up → health gate → rollback on failure)
+        run: |
+          ssh -o BatchMode=yes '${{ secrets.CONTABO_USER }}@${{ secrets.CONTABO_HOST }}' \
+            "bash ${{ env.APP_DIR }}/deploy.sh '${{ steps.tag.outputs.tag }}'"
+
+      # ── External verification from outside the box (§6.9) ─────────────────
+      - name: Verify WHK from the public internet
+        run: |
+          set -Eeuo pipefail
+          for url in '${{ vars.NEXT_PUBLIC_SITE_URL }}' '${{ vars.NEXT_PUBLIC_API_URL }}/health'; do
+            echo "→ $url"
+            for i in $(seq 1 10); do
+              code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 "$url" || echo 000)
+              if [[ "$code" =~ ^(200|204)$ ]]; then echo "   OK ($code)"; break; fi
+              if [[ $i -eq 10 ]]; then echo "   FAILED after 10 tries (last: $code)"; exit 1; fi
+              sleep 6
+            done
+          done
+
+      # ── Neighbour safety AFTER (playbook §3) ──────────────────────────────
+      - name: ShuleHQ health check (after)
+        if: ${{ always() && !inputs.skip_neighbour_check }}
+        run: |
+          bash deploy/contabo/check-neighbour.sh "${{ vars.SHULEHQ_HEALTH_URL }}" "after"
