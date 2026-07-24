@@ -36,3 +36,51 @@ docker compose -p woodenhouses -f docker-compose.prod.yml ps
 ```
 Building, `docker save`/ship/`docker load`, migrations, DNS, secrets, and the gated
 cutover are all in the Phase 3 runbook.
+
+---
+
+## CI/CD — `.github/workflows/deploy-contabo.yml`
+
+Single deploy path (playbook §6.5). Flow: **build in CI → `docker save` → ship →
+`docker load` → `compose up` → health gate**. Images are never pulled on the box (§6.1).
+
+**Triggers:** push to `main` touching `backend/**`, `frontend/**`, `deploy/contabo/**`,
+or manual `workflow_dispatch`.
+
+### Safety built in
+| Guard | What it does |
+|---|---|
+| `verify` job | Backend build + full test suite, `npm audit --audit-level=high`, frontend build. Nothing ships unless green. |
+| ShuleHQ check **before** | Refuses to deploy if the neighbour is already unhealthy — otherwise you can't tell if *you* broke it (§3). |
+| Health gate | Waits for both containers' Docker healthchecks; **auto-rolls back** to the previous tag on failure. |
+| External verification | Curls the public site + `/health` from GitHub Actions, i.e. from outside the box (§6.9). |
+| ShuleHQ check **after** | Runs even if the deploy failed (`always()`) to catch shared-resource impact (§3). |
+| `concurrency` | Only one deploy touches the host at a time. |
+
+### Required GitHub **secrets**
+| Secret | Purpose |
+|---|---|
+| `CONTABO_SSH_KEY` | Private key for the CI deploy user (its own key — not the admin key). |
+| `CONTABO_HOST` | VPS host/IP. |
+| `CONTABO_USER` | Deploy user (`deploy`). |
+| `WHK_PRODUCTION_ENV` | Full contents of `.env.production` (see `.env.production.example`). Written to the box at deploy time, never committed. |
+| `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` | Build-time (inlined — §6.10). |
+
+### Required GitHub **variables**
+| Variable | Example |
+|---|---|
+| `NEXT_PUBLIC_API_URL` | `https://api.woodenhouseskenya.com` |
+| `NEXT_PUBLIC_SITE_URL` | `https://woodenhouseskenya.com` |
+| `NEXT_PUBLIC_ADMIN_URL` | `https://admin.woodenhouseskenya.com` |
+| `SHULEHQ_HEALTH_URL` | ShuleHQ URL for the neighbour check. |
+
+> `NEXT_PUBLIC_*` are **inlined at build time**, so changing one requires a rebuild
+> (a redeploy), not just an env edit (§6.10).
+
+### Rollback
+`deploy.sh` records the live tag in `.last_deployed_tag` on the box. If the health
+gate fails it automatically re-deploys the previous tag. To roll back manually:
+
+```bash
+cd /opt/woodenhouses && ./deploy.sh <previous-tag>
+```
