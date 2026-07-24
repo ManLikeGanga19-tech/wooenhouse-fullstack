@@ -1,0 +1,38 @@
+# Wooden Houses Kenya — STAGING Caddy site config (dress rehearsal only)
+#
+# Import from the main Caddyfile:  import /etc/caddy/sites/woodenhouses-staging.caddy
+# Remove this import after the rehearsal — staging is not permanent.
+#
+# Same TLS/Cloudflare pattern as prod, on staging.* hosts, pointing at the
+# staging containers. Self-contained snippets (suffixed _stg) so it can be
+# imported with or without the prod block present.
+
+(whk_tls_stg) {
+	tls {
+		dns cloudflare {env.CF_API_TOKEN_WOODENHOUSES}
+		resolvers 1.1.1.1
+	}
+}
+
+(whk_headers_stg) {
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options    "nosniff"
+		Referrer-Policy           "strict-origin-when-cross-origin"
+		-Server
+	}
+}
+
+staging.woodenhouseskenya.com {
+	import whk_tls_stg
+	import whk_headers_stg
+	encode zstd gzip
+	reverse_proxy woodenhouses-staging-frontend:3000
+}
+
+api.staging.woodenhouseskenya.com {
+	import whk_tls_stg
+	import whk_headers_stg
+	encode zstd gzip
+	reverse_proxy woodenhouses-staging-backend:8080
+}

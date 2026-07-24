@@ -15,10 +15,14 @@ set -Eeuo pipefail
 
 TAG="${1:?usage: deploy.sh <IMAGE_TAG>}"
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT="woodenhouses"
-COMPOSE="docker compose -p ${PROJECT} -f ${APP_DIR}/docker-compose.prod.yml"
+# Load stack config from the env file so this script drives prod AND staging
+# with no edits (staging sets STACK_NAME / BACKEND_NAME / FRONTEND_NAME).
+set -a; [[ -f "${APP_DIR}/.env.production" ]] && . "${APP_DIR}/.env.production"; set +a
+
+PROJECT="${STACK_NAME:-woodenhouses}"
+COMPOSE="docker compose -p ${PROJECT} --env-file ${APP_DIR}/.env.production -f ${APP_DIR}/docker-compose.prod.yml"
 LAST_TAG_FILE="${APP_DIR}/.last_deployed_tag"
-CONTAINERS=(woodenhouses-backend woodenhouses-frontend)
+CONTAINERS=("${BACKEND_NAME:-woodenhouses-backend}" "${FRONTEND_NAME:-woodenhouses-frontend}")
 HEALTH_TIMEOUT=180   # seconds to reach healthy before we roll back
 
 log() { printf '\n\033[1m▶ %s\033[0m\n' "$*"; }

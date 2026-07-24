@@ -17,7 +17,7 @@ name: woodenhouses
 services:
   backend:
     image: woodenhouses-backend:${IMAGE_TAG:-latest}
-    container_name: woodenhouses-backend
+    container_name: ${BACKEND_NAME:-woodenhouses-backend}
     restart: unless-stopped
     env_file: [ .env.production ]
     networks: [ internal, edge, postgres ]
@@ -38,7 +38,7 @@ services:
 
   frontend:
     image: woodenhouses-frontend:${IMAGE_TAG:-latest}
-    container_name: woodenhouses-frontend
+    container_name: ${FRONTEND_NAME:-woodenhouses-frontend}
     restart: unless-stopped
     env_file: [ .env.production ]
     networks: [ internal, edge ]

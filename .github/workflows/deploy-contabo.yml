@@ -56,10 +56,9 @@ jobs:
 
       - name: Frontend install + audit + build
         working-directory: frontend
-        env:
-          NEXT_PUBLIC_API_URL:   ${{ vars.NEXT_PUBLIC_API_URL }}
-          NEXT_PUBLIC_SITE_URL:  ${{ vars.NEXT_PUBLIC_SITE_URL }}
-          NEXT_PUBLIC_ADMIN_URL: ${{ vars.NEXT_PUBLIC_ADMIN_URL }}
+        # This is a compile/audit GATE — NEXT_PUBLIC_* are not needed here (they
+        # matter only for the deployed image built in the deploy job). Keeping
+        # them out means the verify job needs no environment-scoped config.
         run: |
           npm ci
           npm audit --audit-level=high
@@ -138,7 +137,7 @@ jobs:
             -e "ssh -o BatchMode=yes" \
             bundle/ "${{ secrets.CONTABO_USER }}@${{ secrets.CONTABO_HOST }}:${{ env.APP_DIR }}/"
           $SSH "umask 077 && cat > ${{ env.APP_DIR }}/.env.production" <<'ENVEOF'
-          ${{ secrets.WHK_PRODUCTION_ENV }}
+          ${{ secrets.PRODUCTION_ENV }}
           ENVEOF
 
       - name: Deploy (load → up → health gate → rollback on failure)
