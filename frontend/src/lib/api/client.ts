@@ -152,9 +152,15 @@ export const api = {
     },
 
     upload: {
-      // Returns a short-lived signed token for direct browser → Cloudinary uploads
-      signature: (folder = "wooden-houses-kenya/uploads") =>
-        apiClient.get<CloudinaryUploadSignature>("/api/admin/upload/signature", { params: { folder } }),
+      // Server-side upload → Contabo Object Storage. Returns the public URL.
+      image: (data: FormData, folder = "uploads", onProgress?: (pct: number) => void) =>
+        apiClient.post<{ url: string }>("/api/admin/upload", data, {
+          params:  { folder },
+          headers: { "Content-Type": "multipart/form-data" },
+          onUploadProgress: (e) => {
+            if (onProgress && e.total) onProgress(Math.round((e.loaded / e.total) * 100));
+          },
+        }),
     },
 
     blog: {
@@ -260,15 +266,6 @@ export const api = {
 };
 
 // ─── Shared types ─────────────────────────────────────────────────────────────
-
-export interface CloudinaryUploadSignature {
-  cloudName: string;
-  apiKey:    string;
-  signature: string;
-  timestamp: number;
-  folder:    string;
-  uploadUrl: string;
-}
 
 export interface AuthUser {
   name:      string;

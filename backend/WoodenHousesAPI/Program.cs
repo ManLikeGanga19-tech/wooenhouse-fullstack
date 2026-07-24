@@ -209,12 +209,29 @@ try
         o.ApiToken = builder.Configuration["Resend:ApiKey"] ?? string.Empty;
     });
 
-    // Use Cloudinary in production (Render has an ephemeral filesystem).
-    // Fall back to local disk storage when Cloudinary is not configured (dev).
-    if (!string.IsNullOrWhiteSpace(builder.Configuration["Cloudinary:CloudName"]))
-        builder.Services.AddScoped<IFileService, CloudinaryService>();
+    // Object storage: Contabo Object Storage (S3-compatible) in production;
+    // fall back to local disk when S3 is not configured (dev).
+    builder.Services.Configure<S3Settings>(builder.Configuration.GetSection("S3"));
+    if (!string.IsNullOrWhiteSpace(builder.Configuration["S3:Bucket"]))
+    {
+        builder.Services.AddSingleton<Amazon.S3.IAmazonS3>(_ =>
+        {
+            var s3 = builder.Configuration.GetSection("S3").Get<S3Settings>()!;
+            return new Amazon.S3.AmazonS3Client(
+                s3.AccessKey, s3.SecretKey,
+                new Amazon.S3.AmazonS3Config
+                {
+                    ServiceURL            = s3.ServiceUrl,
+                    ForcePathStyle        = true,             // Contabo uses path-style addressing
+                    AuthenticationRegion  = s3.Region,
+                });
+        });
+        builder.Services.AddScoped<IFileService, S3FileService>();
+    }
     else
+    {
         builder.Services.AddScoped<IFileService, FileService>();
+    }
 
     // ─── Claude AI Agent Services ─────────────────────────────────────────────
     builder.Services.Configure<ClaudeSettings>(
