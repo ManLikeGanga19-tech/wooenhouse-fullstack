@@ -146,18 +146,22 @@ jobs:
             "bash ${{ env.APP_DIR }}/deploy.sh '${{ steps.tag.outputs.tag }}'"
 
       # ── External verification from outside the box (§6.9) ─────────────────
-      - name: Verify WHK from the public internet
+      # Verify the WHK containers are healthy ON THE BOX (via SSH), not over the
+      # public domain — because the domain only points at the VPS AFTER cutover,
+      # and deploys must be verifiable before then too. deploy.sh already
+      # health-gates; this is an explicit post-deploy confirmation in the log.
+      # Public reachability is validated during the DNS cutover (runbook §3.4).
+      - name: Verify WHK containers healthy on the box
         run: |
-          set -Eeuo pipefail
-          for url in '${{ vars.NEXT_PUBLIC_SITE_URL }}' '${{ vars.NEXT_PUBLIC_API_URL }}/health'; do
-            echo "→ $url"
-            for i in $(seq 1 10); do
-              code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 "$url" || echo 000)
-              if [[ "$code" =~ ^(200|204)$ ]]; then echo "   OK ($code)"; break; fi
-              if [[ $i -eq 10 ]]; then echo "   FAILED after 10 tries (last: $code)"; exit 1; fi
-              sleep 6
+          ssh -o BatchMode=yes '${{ secrets.CONTABO_USER }}@${{ secrets.CONTABO_HOST }}' '
+            ok=1
+            for c in woodenhouses-backend woodenhouses-frontend; do
+              s=$(docker inspect -f "{{if .State.Health}}{{.State.Health.Status}}{{end}}" "$c" 2>/dev/null || echo missing)
+              echo "$c: $s"
+              [ "$s" = healthy ] || ok=0
             done
-          done
+            [ "$ok" = 1 ] && echo "WHK containers healthy." || { echo "one or more containers not healthy"; exit 1; }
+          '
 
       # ── Neighbour safety AFTER (playbook §3) ──────────────────────────────
       - name: ShuleHQ health check (after)
