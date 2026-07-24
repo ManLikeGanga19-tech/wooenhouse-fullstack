@@ -1,6 +1,7 @@
 using System.Text;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
@@ -114,6 +115,18 @@ try
         );
     });
 
+    // ─── Forwarded headers (behind Cloudflare → Caddy) ────────────────────────
+    // Make scheme/host/RemoteIp reflect the real request, not the reverse proxy.
+    // The app container is reachable ONLY via Caddy on the Docker network, so the
+    // upstream is trusted (KnownProxies/Networks cleared → accept the forwarded
+    // headers). Client-IP for rate limiting is resolved separately via ClientIp.
+    builder.Services.Configure<ForwardedHeadersOptions>(o =>
+    {
+        o.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+        o.KnownNetworks.Clear();
+        o.KnownProxies.Clear();
+    });
+
     // ─── Rate Limiting ────────────────────────────────────────────────────────
     builder.Services.AddRateLimiter(options =>
     {
@@ -121,23 +134,33 @@ try
 
         var isTest = builder.Environment.IsEnvironment("Testing");
 
-        // Strict: contact form & auth — 5 req/min (unlimited in tests)
-        options.AddFixedWindowLimiter("strict", o =>
-        {
-            o.PermitLimit          = isTest ? int.MaxValue : 5;
-            o.Window               = TimeSpan.FromMinutes(1);
-            o.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-            o.QueueLimit           = isTest ? int.MaxValue : 0;
-        });
+        // Partition on the REAL client IP (CF-Connecting-IP → X-Forwarded-For → peer)
+        // so limits are per-user. A non-partitioned limiter behind Cloudflare/Caddy
+        // would either be global (one user locks out everyone) or key on the proxy.
 
-        // Standard: general API — 60 req/min (unlimited in tests)
-        options.AddFixedWindowLimiter("standard", o =>
-        {
-            o.PermitLimit          = isTest ? int.MaxValue : 60;
-            o.Window               = TimeSpan.FromMinutes(1);
-            o.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-            o.QueueLimit           = isTest ? int.MaxValue : 2;
-        });
+        // Strict: contact form & auth — 5 req/min per client (unlimited in tests)
+        options.AddPolicy("strict", httpContext =>
+            RateLimitPartition.GetFixedWindowLimiter(
+                partitionKey: WoodenHousesAPI.Common.ClientIp.Get(httpContext),
+                factory: _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit          = isTest ? int.MaxValue : 5,
+                    Window               = TimeSpan.FromMinutes(1),
+                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                    QueueLimit           = isTest ? int.MaxValue : 0,
+                }));
+
+        // Standard: general API — 60 req/min per client (unlimited in tests)
+        options.AddPolicy("standard", httpContext =>
+            RateLimitPartition.GetFixedWindowLimiter(
+                partitionKey: WoodenHousesAPI.Common.ClientIp.Get(httpContext),
+                factory: _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit          = isTest ? int.MaxValue : 60,
+                    Window               = TimeSpan.FromMinutes(1),
+                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                    QueueLimit           = isTest ? int.MaxValue : 2,
+                }));
     });
 
     // ─── Response Compression ─────────────────────────────────────────────────
@@ -181,7 +204,10 @@ try
     // ─── Claude AI Agent Services ─────────────────────────────────────────────
     builder.Services.Configure<ClaudeSettings>(
         builder.Configuration.GetSection("Claude"));
-    builder.Services.AddHttpClient<IClaudeService, ClaudeService>();
+    // Explicit timeout so a stuck Claude call can't hold an agent/thread for the
+    // default 100s. Concurrency is bounded inside ClaudeService (see the gate).
+    builder.Services.AddHttpClient<IClaudeService, ClaudeService>(c =>
+        c.Timeout = TimeSpan.FromSeconds(60));
     builder.Services.AddScoped<IAgentContextService, AgentContextService>();
     builder.Services.AddScoped<ISalesAgentService,    SalesAgentService>();
     builder.Services.AddScoped<IQuoteAgentService,    QuoteAgentService>();
@@ -286,6 +312,10 @@ try
     // ─── Middleware Pipeline (ORDER MATTERS) ──────────────────────────────────
 
     // 1. Exception handler — must be first so it catches everything below
+    // MUST be first: rewrite scheme/RemoteIp from Caddy's forwarded headers
+    // before anything (rate limiting, auth, redirects) reads them.
+    app.UseForwardedHeaders();
+
     app.UseMiddleware<ExceptionMiddleware>();
 
     // 2. Security headers

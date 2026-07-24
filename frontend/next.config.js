@@ -12,6 +12,8 @@ const withPWA = require("@ducanh2912/next-pwa").default({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Self-contained server output for a small Docker image on the Contabo VPS.
+  output: "standalone",
   reactCompiler: true,
   turbopack: {},
 
