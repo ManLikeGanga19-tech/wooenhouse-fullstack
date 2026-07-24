@@ -5,6 +5,10 @@ frontend/.env.local
 frontend/.env.production
 frontend/out/
 
+# ─── Deploy (Contabo) — never commit real secrets ────────────────────────────
+deploy/contabo/.env.production
+deploy/**/.env.production
+
 # ─── Backend ─────────────────────────────────────────────────────────────────
 backend/**/bin/
 backend/**/obj/

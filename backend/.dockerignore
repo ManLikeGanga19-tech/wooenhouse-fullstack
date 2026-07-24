@@ -1,0 +1,11 @@
+# Keep the build context small and deterministic
+**/bin/
+**/obj/
+**/.vs/
+WoodenHousesAPI.Tests/
+*.user
+*.sln.DotSettings.user
+appsettings.Development.json
+appsettings.Production.json
+**/.env*
+README.md
