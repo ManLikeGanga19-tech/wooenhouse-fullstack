@@ -19,19 +19,19 @@ for i in $(seq 1 "$ATTEMPTS"); do
   headers="$(curl -sS -D - -o /dev/null --max-time 15 "$URL" 2>/dev/null || true)"
   code="$(printf '%s' "$headers" | awk 'NR==1{print $2}')"
 
-  # Healthy: any 2xx/3xx …
-  if [[ "$code" =~ ^(2|3)[0-9][0-9]$ ]]; then
-    echo "✓ ShuleHQ healthy ($PHASE): HTTP $code"
+  # This is a LIVENESS tripwire, not a functional test. ShuleHQ is "up" if the
+  # server RESPONDED with any non-5xx status — including the expected 401 from an
+  # auth-protected deep-health endpoint (proves the backend + shared Postgres are
+  # reachable). Only a 5xx or no-response means a WHK deploy may have harmed the
+  # shared box (OOM, CPU starvation, DB/Caddy impact → 5xx / connection failure).
+  if [[ "$code" =~ ^[1-4][0-9][0-9]$ ]]; then
+    note=""
+    printf '%s' "$headers" | grep -qi 'cf-mitigated' && note=" (Cloudflare challenge)"
+    echo "✓ ShuleHQ healthy ($PHASE): HTTP $code — server responded${note}"
     exit 0
   fi
 
-  # … or a Cloudflare mitigation, which means the edge is up and protecting it.
-  if [[ "$code" == "403" ]] && printf '%s' "$headers" | grep -qi 'cf-mitigated'; then
-    echo "✓ ShuleHQ healthy ($PHASE): HTTP 403 + cf-mitigated (Cloudflare challenge, not an outage)"
-    exit 0
-  fi
-
-  echo "  attempt $i/$ATTEMPTS → HTTP ${code:-000}"
+  echo "  attempt $i/$ATTEMPTS → HTTP ${code:-000} (no response / 5xx)"
   sleep 5
 done
 
