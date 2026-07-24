@@ -15,12 +15,18 @@ set -Eeuo pipefail
 
 TAG="${1:?usage: deploy.sh <IMAGE_TAG>}"
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# Load stack config from the env file so this script drives prod AND staging
-# with no edits (staging sets STACK_NAME / BACKEND_NAME / FRONTEND_NAME).
-set -a; [[ -f "${APP_DIR}/.env.production" ]] && . "${APP_DIR}/.env.production"; set +a
+# Read ONLY the stack-naming vars we need, WITHOUT sourcing the file. An env
+# file is KEY=VALUE (docker compose parses it), NOT shell — sourcing it in bash
+# breaks on any value with spaces (e.g. Seed__AdminName=Mr Eric Abuto → bash
+# tries to run "Eric"). docker compose reads the file correctly via --env-file.
+ENV_FILE="${APP_DIR}/.env.production"
+readvar() { grep -E "^$1=" "$ENV_FILE" 2>/dev/null | tail -1 | cut -d= -f2- | tr -d '\r'; }
+STACK_NAME="$(readvar STACK_NAME)"
+BACKEND_NAME="$(readvar BACKEND_NAME)"
+FRONTEND_NAME="$(readvar FRONTEND_NAME)"
 
 PROJECT="${STACK_NAME:-woodenhouses}"
-COMPOSE="docker compose -p ${PROJECT} --env-file ${APP_DIR}/.env.production -f ${APP_DIR}/docker-compose.prod.yml"
+COMPOSE="docker compose -p ${PROJECT} --env-file ${ENV_FILE} -f ${APP_DIR}/docker-compose.prod.yml"
 LAST_TAG_FILE="${APP_DIR}/.last_deployed_tag"
 CONTAINERS=("${BACKEND_NAME:-woodenhouses-backend}" "${FRONTEND_NAME:-woodenhouses-frontend}")
 HEALTH_TIMEOUT=180   # seconds to reach healthy before we roll back
