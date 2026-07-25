@@ -1,0 +1,92 @@
+name: Security audit
+
+# Decoupled from the deploy pipeline ON PURPOSE. Deploys must be deterministic —
+# they may depend only on committed code + the lockfile, never on the external
+# advisory database, whose timing is outside our control. `npm audit` failing a
+# deploy of already-merged code because an unrelated advisory was published that
+# morning (as brace-expansion GHSA-mh99-v99m-4gvg did) is exactly what this
+# separation prevents.
+#
+# This workflow surfaces dependency vulnerabilities loudly and continuously.
+# Because it is a SEPARATE workflow, a finding here is an early warning to
+# remediate (usually via a lockfile override — see frontend/package.json
+# "overrides"), NOT a deploy blocker.
+#
+# NOTE: if you want merges/deploys to stay immune to advisory timing, do NOT add
+# these jobs as *required* status checks in branch protection. A red run is
+# meant to be visible, not gating.
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'        # weekly — Monday 06:00 UTC
+  pull_request:
+    paths:
+      - 'frontend/package.json'
+      - 'frontend/package-lock.json'
+      - 'backend/**/*.csproj'
+      - '.github/workflows/security-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  frontend-audit:
+    name: Frontend npm audit (high)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install (audit only needs the resolved tree)
+        working-directory: frontend
+        run: npm ci --ignore-scripts
+
+      - name: npm audit --audit-level=high
+        working-directory: frontend
+        run: |
+          set -o pipefail
+          npm audit --audit-level=high | tee audit.txt
+
+      - name: Summarize (always)
+        if: always()
+        working-directory: frontend
+        run: |
+          {
+            echo "### Frontend — npm audit (level: high)"
+            echo '```'
+            tail -n 60 audit.txt 2>/dev/null || echo "(no audit output captured)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  backend-audit:
+    name: Backend NuGet vulnerable scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore backend/WoodenHousesAPI/WoodenHousesAPI.csproj
+
+      - name: dotnet list package --vulnerable
+        run: |
+          dotnet list backend/WoodenHousesAPI/WoodenHousesAPI.csproj package \
+            --vulnerable --include-transitive 2>&1 | tee vuln.txt
+          {
+            echo "### Backend — vulnerable NuGet packages (incl. transitive)"
+            echo '```'
+            cat vuln.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if grep -qi "has the following vulnerable packages" vuln.txt; then
+            echo "::error::Vulnerable NuGet packages found — remediate via package upgrade or override."
+            exit 1
+          fi
+          echo "No vulnerable NuGet packages."
