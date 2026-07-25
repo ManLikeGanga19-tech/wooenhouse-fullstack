@@ -20,7 +20,15 @@ APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # breaks on any value with spaces (e.g. Seed__AdminName=Mr Eric Abuto → bash
 # tries to run "Eric"). docker compose reads the file correctly via --env-file.
 ENV_FILE="${APP_DIR}/.env.production"
-readvar() { grep -E "^$1=" "$ENV_FILE" 2>/dev/null | tail -1 | cut -d= -f2- | tr -d '\r'; }
+# A missing key is EXPECTED — the compose file supplies `:-` defaults for the
+# stack-naming vars. Neutralise the pipe's non-zero exit (grep returns 1 when the
+# key is absent) so `set -Eeuo pipefail` doesn't abort the whole script — silently,
+# before any log line — on a var we're happy to default.
+readvar() {
+  local val
+  val="$(grep -E "^$1=" "$ENV_FILE" 2>/dev/null | tail -1 | cut -d= -f2- | tr -d '\r')" || true
+  printf '%s' "$val"
+}
 STACK_NAME="$(readvar STACK_NAME)"
 BACKEND_NAME="$(readvar BACKEND_NAME)"
 FRONTEND_NAME="$(readvar FRONTEND_NAME)"

@@ -23,7 +23,11 @@ if (args.Contains("--healthcheck"))
     try
     {
         using var hc = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
-        var resp = await hc.GetAsync("http://127.0.0.1:8080/health");
+        // Use "localhost", NOT "127.0.0.1": Host Filtering (AllowedHosts) rejects
+        // any Host header not in its allow-list with 400 "Invalid Hostname". The
+        // list includes "localhost" but not the bare IP — hitting 127.0.0.1 makes
+        // the probe 400 and the container is wrongly marked unhealthy.
+        var resp = await hc.GetAsync("http://localhost:8080/health");
         Environment.Exit(resp.IsSuccessStatusCode ? 0 : 1);
     }
     catch { Environment.Exit(1); }
