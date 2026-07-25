@@ -54,14 +54,18 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Frontend install + audit + build
+      - name: Frontend install + build
         working-directory: frontend
-        # This is a compile/audit GATE — NEXT_PUBLIC_* are not needed here (they
-        # matter only for the deployed image built in the deploy job). Keeping
-        # them out means the verify job needs no environment-scoped config.
+        # DETERMINISTIC deploy gate: this depends only on committed code + the
+        # lockfile — never on the external advisory DB. `npm audit` is timing-
+        # sensitive (a newly published advisory can fail an unrelated deploy of
+        # already-merged code, as brace-expansion GHSA-mh99-v99m-4gvg did), so it
+        # is NOT run here. Dependency auditing lives in the decoupled
+        # security-audit.yml workflow, where a finding is loudly visible but can
+        # never halt a deploy. NEXT_PUBLIC_* aren't needed here (the deploy job
+        # supplies them when it builds the shipped image).
         run: |
           npm ci
-          npm audit --audit-level=high
           npm run build
 
   # ───────────────────────────────────────────────────────────────────────────
