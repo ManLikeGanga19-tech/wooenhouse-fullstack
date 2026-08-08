@@ -179,7 +179,12 @@ multi-line secret. Two things that bite:
 - **`CLAUDE_MAX_CONCURRENCY` is a bare env var**, not `Section__Key`. Every other
   setting uses the `__` separator; this one does not. Get it wrong and the agent
   concurrency cap silently doesn't apply.
-- **`Seed__AdminPassword` is mandatory** — the app *throws on startup* if it's missing.
+- **`Seed__AdminPassword` is mandatory on a fresh database** — the app *throws on
+  startup* if it's missing and no admin row exists yet. Once the admin account
+  exists it is **ignored**: the DB owns the password from then on, so a password
+  changed from the dashboard survives redeploys and a stale value here can never
+  reset a live login. To deliberately reset a forgotten password, add
+  `Seed__ForceAdminReset=true`, deploy once, then remove it.
 
 ---
 
