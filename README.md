@@ -130,7 +130,7 @@ npm run dev          # runs both frontend (port 3000) and backend (port 5000)
 | `/dashboard/newsletter` | Newsletter subscribers |
 | `/dashboard/settings` | Profile & password |
 
-**Default admin credentials** are set via the `Seed` section in `appsettings.json`. Change the password immediately after first login.
+**Default admin credentials** are set via the `Seed` section in `appsettings.json`, but only to *create* the account. Once it exists the database owns the password, so changing it at `/dashboard/settings` sticks across redeploys. To reset a forgotten password, set `Seed:ForceAdminReset=true`, restart once, then unset it.
 
 ## Environment Variables
 

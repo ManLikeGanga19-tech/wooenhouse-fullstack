@@ -23,25 +23,45 @@ public static class DatabaseSeeder
     }
 
     // ─── Admin User ──────────────────────────────────────────────────────────
+    // Config seeds the admin account; it does not own it afterwards. Once the
+    // row exists the DB is the source of truth, so a password changed from the
+    // dashboard survives the next deploy and a stale Seed__AdminPassword in
+    // CI's PRODUCTION_ENV can never silently reset a live credential.
+    // Recovery from a lost password: set Seed__ForceAdminReset=true for one
+    // boot to re-apply the config values, then unset it.
     private static async Task SeedAdminUserAsync(
         AppDbContext db, IConfiguration config, ILogger logger)
     {
-        var email    = config["Seed:AdminEmail"]    ?? "director@woodenhouseskenya.com";
-        var name     = config["Seed:AdminName"]     ?? "Eric Abuto";
-        var password = config["Seed:AdminPassword"] ?? throw new InvalidOperationException(
-            "Seed:AdminPassword must be set in configuration.");
+        var email = config["Seed:AdminEmail"] ?? "director@woodenhouseskenya.com";
+        var name  = config["Seed:AdminName"]  ?? "Eric Abuto";
+        var force = string.Equals(
+            config["Seed:ForceAdminReset"], "true", StringComparison.OrdinalIgnoreCase);
 
-        var hash     = BCrypt.Net.BCrypt.HashPassword(password, workFactor: 12);
         var existing = db.AdminUsers.FirstOrDefault();
+
+        if (existing is not null && !force)
+        {
+            logger.LogInformation(
+                "Admin user already exists ({Email}) — credentials left untouched.",
+                MaskEmail(existing.Email));
+            return;
+        }
+
+        // Only needed to create the account or to deliberately reset it.
+        var password = config["Seed:AdminPassword"] ?? throw new InvalidOperationException(
+            "Seed:AdminPassword must be set in configuration to seed or reset the admin user.");
+        var hash = BCrypt.Net.BCrypt.HashPassword(password, workFactor: 12);
 
         if (existing is not null)
         {
-            // Always sync email, name and password from config so a redeploy updates credentials
             existing.Email        = email;
             existing.Name         = name;
             existing.PasswordHash = hash;
             await db.SaveChangesAsync();
-            logger.LogInformation("Admin user updated: {Email}", MaskEmail(email));
+            logger.LogWarning(
+                "Seed:ForceAdminReset was set — admin credentials RESET from config: {Email}. "
+                + "Unset Seed__ForceAdminReset so the next deploy does not reset them again.",
+                MaskEmail(email));
             return;
         }
 
