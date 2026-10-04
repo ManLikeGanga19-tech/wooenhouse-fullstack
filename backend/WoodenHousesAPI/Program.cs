@@ -258,7 +258,8 @@ try
     builder.Services.Configure<MailboxConfig>(
         builder.Configuration.GetSection("Mailboxes"));
     builder.Services.AddScoped<IImapService, ImapService>();
-    builder.Services.AddHostedService<MailboxSyncService>();
+    builder.Services.AddSingleton<MailboxSyncService>();
+    builder.Services.AddHostedService(sp => sp.GetRequiredService<MailboxSyncService>());
 
     // ─── Controllers ─────────────────────────────────────────────────────────
     builder.Services.AddControllers(options =>

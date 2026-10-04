@@ -604,6 +604,9 @@ export interface MailboxAccount {
   displayName: string;
   color:       string;
   hasPassword: boolean;
+  lastSyncedAt:  string | null;
+  lastAttemptAt: string | null;
+  syncError:     string | null;
 }
 
 export interface MailboxEmailSummary {

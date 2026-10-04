@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using MimeKit;
 using WoodenHousesAPI.Data;
 using WoodenHousesAPI.Models;
 using WoodenHousesAPI.Services;
@@ -16,21 +17,32 @@ public class AdminMailboxController(
     AppDbContext            db,
     IOptions<MailboxConfig> cfg,
     IImapService            imap,
+    MailboxSyncService      syncService,
     IEmailService           email,
     ILogger<AdminMailboxController> logger) : ControllerBase
 {
     // ── GET /api/admin/mailbox/accounts ──────────────────────────────────────
     [HttpGet("accounts")]
-    public IActionResult GetAccounts()
+    public async Task<IActionResult> GetAccounts()
     {
+        var statuses = await db.MailboxAccountStatuses.AsNoTracking()
+            .ToDictionaryAsync(s => s.AccountEmail, StringComparer.OrdinalIgnoreCase);
+
         var accounts = cfg.Value.Accounts
             .Where(a => !string.IsNullOrWhiteSpace(a.Email))
-            .Select(a => new
+            .Select(a =>
             {
-                a.Email,
-                a.DisplayName,
-                a.Color,
-                HasPassword = !string.IsNullOrWhiteSpace(a.Password),
+                statuses.TryGetValue(a.Email, out var st);
+                return new
+                {
+                    a.Email,
+                    a.DisplayName,
+                    a.Color,
+                    HasPassword   = !string.IsNullOrWhiteSpace(a.Password),
+                    LastSyncedAt  = st?.LastSuccessAt,
+                    LastAttemptAt = st?.LastAttemptAt,
+                    SyncError     = st?.LastError,
+                };
             });
         return Ok(accounts);
     }
@@ -91,9 +103,16 @@ public class AdminMailboxController(
         var email = await db.InboxEmails.FindAsync(id);
         if (email is null) return NotFound();
 
-        // Auto-mark as read
+        // Auto-mark as read — here and on the server, so Outlook shows it read too
         if (!email.IsRead)
         {
+            try { await imap.SetFlagsAsync(email, isRead: true, isStarred: null); }
+            catch (Exception ex)
+            {
+                // Opening an email shouldn't fail because the mail server is slow;
+                // the next sync restores the server's state if this didn't land.
+                logger.LogWarning(ex, "Could not mark email {Id} read on the server", id);
+            }
             email.IsRead = true;
             await db.SaveChangesAsync();
         }
@@ -107,10 +126,27 @@ public class AdminMailboxController(
     {
         var em = await db.InboxEmails.FindAsync(id);
         if (em is null) return NotFound();
+        if (req.Folder is not null && !MailboxFolders.All.Contains(req.Folder))
+            return BadRequest(new { error = "Unknown folder" });
+
+        // The mail server is the source of truth: change it first, and only
+        // record the change here if it succeeded, so Outlook and the dashboard
+        // can't drift apart.
+        try
+        {
+            if (req.IsRead.HasValue || req.IsStarred.HasValue)
+                await imap.SetFlagsAsync(em, req.IsRead, req.IsStarred);
+            if (req.Folder is not null)
+                await imap.MoveAsync(em, req.Folder);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Mailbox update failed on the server for email {Id}", id);
+            return StatusCode(502, new { error = "Couldn't update the mail server — please try again" });
+        }
 
         if (req.IsRead.HasValue)     em.IsRead     = req.IsRead.Value;
         if (req.IsStarred.HasValue)  em.IsStarred  = req.IsStarred.Value;
-        if (req.Folder is not null)  em.Folder     = req.Folder;
 
         await db.SaveChangesAsync();
         return Ok(new { em.Id, em.IsRead, em.IsStarred, em.Folder });
@@ -122,7 +158,24 @@ public class AdminMailboxController(
     {
         var em = await db.InboxEmails.FindAsync(id);
         if (em is null) return NotFound();
-        db.InboxEmails.Remove(em);
+
+        // Same as Outlook: delete moves to Trash; deleting from Trash is permanent.
+        try
+        {
+            if (em.Folder != MailboxFolders.Trash)
+                await imap.MoveAsync(em, MailboxFolders.Trash);
+            else
+            {
+                await imap.DeleteAsync(em);
+                db.InboxEmails.Remove(em);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Mailbox delete failed on the server for email {Id}", id);
+            return StatusCode(502, new { error = "Couldn't delete on the mail server — please try again" });
+        }
+
         await db.SaveChangesAsync();
         return NoContent();
     }
@@ -149,22 +202,10 @@ public class AdminMailboxController(
     [HttpPost("sync")]
     public IActionResult ManualSync([FromQuery] string? account = null)
     {
-        var accounts = cfg.Value.Accounts;
-        if (account is not null)
-            accounts = accounts.Where(a => a.Email == account).ToList();
+        if (account is not null && !cfg.Value.Accounts.Any(a => a.Email == account))
+            return BadRequest(new { error = "Unknown account" });
 
-        _ = Task.Run(async () =>
-        {
-            foreach (var acc in accounts)
-            {
-                try { await imap.SyncAccountAsync(acc); }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Manual sync failed for {Email}", MaskEmail(acc.Email));
-                }
-            }
-        });
-
+        syncService.RequestSync(account);
         return Accepted(new { message = "Sync started" });
     }
 
@@ -182,13 +223,29 @@ public class AdminMailboxController(
             var htmlBody = req.HtmlBody ?? WrapPlainText(req.Body ?? "");
             await email.ComposeEmailAsync(req.From, fromAccount.DisplayName, req.To, req.Subject, htmlBody, req.Cc, req.InReplyTo);
 
-            // Save to Sent folder in our DB
+            // Resend only delivers the message; also file a copy in the mailbox's
+            // Sent folder on the server so it shows in Outlook's Sent Items.
+            var messageId = $"{Guid.NewGuid()}@woodenhouseskenya.com";
+            (string FolderPath, long? Uid)? appended = null;
+            try
+            {
+                var copy = BuildSentCopy(req, fromAccount.DisplayName, htmlBody, messageId);
+                appended = await imap.AppendSentAsync(fromAccount, copy);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Email sent but the Sent copy couldn't be saved on the server for {From}", MaskEmail(req.From));
+            }
+
+            // Show it in Sent straight away. With no UID yet the next sync adopts
+            // the server copy by Message-ID instead of listing it twice.
             var sent = new InboxEmail
             {
                 AccountEmail = req.From,
-                Folder       = "sent",
-                Uid          = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-                MessageId    = $"<{Guid.NewGuid()}@woodenhouseskenya.com>",
+                Folder       = MailboxFolders.Sent,
+                FolderPath   = appended?.FolderPath ?? string.Empty,
+                Uid          = appended?.Uid,
+                MessageId    = messageId,
                 Subject      = req.Subject,
                 FromAddress  = req.From,
                 FromName     = fromAccount.DisplayName,
@@ -209,6 +266,22 @@ public class AdminMailboxController(
             logger.LogError(ex, "Failed to send compose email from {From} to {To}", MaskEmail(req.From), MaskEmail(req.To));
             return StatusCode(500, new { error = ex.Message });
         }
+    }
+
+    private static MimeMessage BuildSentCopy(ComposeEmailRequest req, string displayName, string htmlBody, string messageId)
+    {
+        var msg = new MimeMessage
+        {
+            Subject   = req.Subject,
+            MessageId = messageId,
+            Date      = DateTimeOffset.UtcNow,
+            Body      = new BodyBuilder { HtmlBody = htmlBody, TextBody = req.Body }.ToMessageBody(),
+        };
+        msg.From.Add(new MailboxAddress(displayName, req.From));
+        msg.To.AddRange(InternetAddressList.Parse(req.To));
+        if (!string.IsNullOrWhiteSpace(req.Cc))        msg.Cc.AddRange(InternetAddressList.Parse(req.Cc));
+        if (!string.IsNullOrWhiteSpace(req.InReplyTo)) msg.InReplyTo = req.InReplyTo;
+        return msg;
     }
 
     private static string WrapPlainText(string text) =>

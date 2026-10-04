@@ -19,6 +19,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<AgentTask>             AgentTasks             => Set<AgentTask>();
     public DbSet<AgentContext>          AgentContexts          => Set<AgentContext>();
     public DbSet<InboxEmail>            InboxEmails            => Set<InboxEmail>();
+    public DbSet<MailboxFolderState>    MailboxFolderStates    => Set<MailboxFolderState>();
+    public DbSet<MailboxAccountStatus>  MailboxAccountStatuses => Set<MailboxAccountStatus>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -169,10 +171,22 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(i => i.HasAttachment).HasDefaultValue(false);
             e.Property(i => i.SyncedAt).HasDefaultValueSql("NOW()");
             e.Property(i => i.ReceivedAt).HasDefaultValueSql("NOW()");
-            // Dedup index: one row per (account, folder, uid)
-            e.HasIndex(i => new { i.AccountEmail, i.Folder, i.Uid }).IsUnique();
+            // Dedup index: one row per (account, IMAP folder, uid). Rows not yet on
+            // the server have a null Uid, which Postgres treats as distinct.
+            e.HasIndex(i => new { i.AccountEmail, i.FolderPath, i.Uid }).IsUnique();
+            e.HasIndex(i => new { i.AccountEmail, i.Folder });
             e.HasIndex(i => i.ReceivedAt);
             e.HasIndex(i => i.AccountEmail);
+        });
+
+        modelBuilder.Entity<MailboxFolderState>(e =>
+        {
+            e.HasKey(s => new { s.AccountEmail, s.FolderPath });
+        });
+
+        modelBuilder.Entity<MailboxAccountStatus>(e =>
+        {
+            e.HasKey(s => s.AccountEmail);
         });
     }
 }
