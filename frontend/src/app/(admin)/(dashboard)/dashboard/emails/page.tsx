@@ -341,6 +341,33 @@ function EmailRow({
 
 // ─── Mailbox tab ──────────────────────────────────────────────────────────────
 
+function getApiError(err: unknown, fallback: string) {
+    const data = (err as { response?: { data?: { error?: string } } })?.response?.data
+    return data?.error ?? fallback
+}
+
+// Shows when this mailbox last matched the server, so a failing account
+// (e.g. a password changed in Outlook but not on the server) is obvious.
+function SyncStatus({ account }: { account: MailboxAccount }) {
+    if (account.syncError || !account.hasPassword) {
+        return (
+            <p className="flex items-start gap-1 text-[11px] leading-snug text-red-600" title={account.syncError ?? undefined}>
+                <AlertCircle size={12} className="shrink-0 mt-px" />
+                <span>
+                    {account.hasPassword ? "Sync failing" : "Not connected — no password set"}
+                    {account.lastSyncedAt && ` · last OK ${formatDistanceToNow(new Date(account.lastSyncedAt), { addSuffix: true })}`}
+                </span>
+            </p>
+        )
+    }
+    if (!account.lastSyncedAt) return <p className="text-center text-[11px] text-gray-400">Waiting for first sync</p>
+    return (
+        <p className="text-center text-[11px] text-gray-400">
+            Synced {formatDistanceToNow(new Date(account.lastSyncedAt), { addSuffix: true })}
+        </p>
+    )
+}
+
 function MailboxTab() {
     const [accounts,     setAccounts]     = useState<MailboxAccount[]>([])
     const [activeAcct,   setActiveAcct]   = useState<string>("")
@@ -358,28 +385,32 @@ function MailboxTab() {
     const [replyTarget,  setReplyTarget]  = useState<MailboxEmailDetail | null>(null)
 
     const PAGE_SIZE = 30
+    const REFRESH_MS = 30_000 // matches the server's sync interval
 
-    // Load accounts
-    useEffect(() => {
-        api.admin.mailbox.getAccounts()
-            .then(r => {
-                setAccounts(r.data)
-                if (r.data.length > 0) setActiveAcct(r.data[0].email)
-            })
-            .catch(() => toast.error("Could not load mailbox accounts"))
+    // Load accounts (also refreshed on a timer for each account's sync status)
+    const loadAccounts = useCallback(async (initial = false) => {
+        try {
+            const r = await api.admin.mailbox.getAccounts()
+            setAccounts(r.data)
+            if (initial && r.data.length > 0) setActiveAcct(r.data[0].email)
+        } catch {
+            if (initial) toast.error("Could not load mailbox accounts")
+        }
     }, [])
 
-    const loadEmails = useCallback(async (acct: string, folder: Folder, p: number, q: string) => {
+    useEffect(() => { loadAccounts(true) }, [loadAccounts])
+
+    const loadEmails = useCallback(async (acct: string, folder: Folder, p: number, q: string, silent = false) => {
         if (!acct) return
-        setLoading(true)
+        if (!silent) setLoading(true)
         try {
             const r = await api.admin.mailbox.getEmails({ account: acct, folder, page: p, q: q || undefined })
             setEmails(r.data.items)
             setTotal(r.data.total)
         } catch {
-            toast.error("Could not load emails")
+            if (!silent) toast.error("Could not load emails")
         } finally {
-            setLoading(false)
+            if (!silent) setLoading(false)
         }
     }, [])
 
@@ -397,6 +428,18 @@ function MailboxTab() {
         }
     }, [activeAcct, activeFolder, page, activeAcct, loadEmails, loadCounts]) // eslint-disable-line
 
+    // Keep the open view current as the server syncs new mail and Outlook changes
+    useEffect(() => {
+        if (!activeAcct) return
+        const id = setInterval(() => {
+            if (document.visibilityState !== "visible") return
+            loadEmails(activeAcct, activeFolder, page, search, true)
+            loadCounts(activeAcct)
+            loadAccounts()
+        }, REFRESH_MS)
+        return () => clearInterval(id)
+    }, [activeAcct, activeFolder, page, search, loadEmails, loadCounts, loadAccounts])
+
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault()
         setPage(1)
@@ -411,6 +454,7 @@ function MailboxTab() {
             setTimeout(() => {
                 loadEmails(activeAcct, activeFolder, page, search)
                 loadCounts(activeAcct)
+                loadAccounts()
             }, 5000)
         } catch {
             toast.error("Sync failed")
@@ -433,9 +477,9 @@ function MailboxTab() {
             setSelectedId(null)
             setShowDetail(false)
             loadCounts(activeAcct)
-            toast.success("Deleted")
-        } catch {
-            toast.error("Delete failed")
+            toast.success(activeFolder === "trash" ? "Deleted permanently" : "Moved to Trash")
+        } catch (err) {
+            toast.error(getApiError(err, "Delete failed"))
         }
     }
 
@@ -531,6 +575,7 @@ function MailboxTab() {
                             <RefreshCw size={12} className={syncing ? "animate-spin" : ""} />
                             {syncing ? "Syncing..." : "Sync now"}
                         </button>
+                        {activeAccount && <SyncStatus account={activeAccount} />}
                     </div>
                 </div>
 
